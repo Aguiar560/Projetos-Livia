@@ -146,7 +146,7 @@ function renderList() {
       ${attCount > 0 ? `<div style="font-size:.78rem;color:var(--text2)">📎 ${attCount} anexo${attCount > 1 ? 's' : ''}</div>` : ''}
       <div class="card-actions">
         <button class="btn btn-primary" style="flex:2" onclick="openProject(${p.id})">🔍 Ver projeto</button>
-        <button class="btn btn-ghost" onclick="editProject(${p.id})">✏️</button>
+        ${(p.status === 'em andamento' || p.status === 'futuro') ? `<button class="btn btn-ghost" onclick="editProject(${p.id})">✏️</button>` : ''}
         <button class="btn btn-danger" onclick="deleteProject(${p.id})">🗑</button>
       </div>
     </div>`;
@@ -241,7 +241,7 @@ async function openProject(id) {
         <span class="badge badge-${slug}">${esc(p.status)}</span>
       </div>
       <div class="detail-top-actions">
-        <button class="btn btn-ghost" onclick="editProject(${p.id})">✏️ Editar</button>
+        ${(p.status === 'em andamento' || p.status === 'futuro') ? `<button class="btn btn-ghost" onclick="editProject(${p.id})">✏️ Editar</button>` : ''}
         <button class="btn btn-danger" onclick="deleteProject(${p.id})">🗑 Excluir</button>
       </div>
     </div>
@@ -768,7 +768,6 @@ async function editProject(id) {
   form.budget.value = p.budget || '';
   form.currency.value = p.currency || 'BRL';
   form.tags.value = (p.tags || []).join(', ');
-  form.progress.value = p.progress || 0;
   form.inscription_start.value = dateVal(p.inscription_start);
   form.inscription_end.value   = dateVal(p.inscription_end);
   form.inscription_response.value = dateVal(p.inscription_response);
@@ -781,7 +780,6 @@ async function editProject(id) {
     removeRecusadoOption();
     document.getElementById('statusSelect').value = p.status || 'futuro';
   }
-  document.getElementById('progressLabel').textContent = p.progress || 0;
   document.getElementById('modal-title').textContent = 'Editar Projeto';
   document.getElementById('submitBtn').textContent = 'Salvar alterações';
   document.getElementById('modalOverlay').classList.add('open');
@@ -815,7 +813,7 @@ document.getElementById('projectForm').addEventListener('submit', async e => {
     client: form.client.value,
     budget: form.budget.value || null,
     currency: form.currency.value || 'BRL',
-    progress: form.progress.value,
+    progress: editingId ? (allProjects.find(x => x.id === editingId)?.progress || 0) : 0,
     tags: form.tags.value.split(',').map(s => s.trim()).filter(Boolean),
     inscription_start: form.inscription_start.value || null,
     inscription_end: form.inscription_end.value || null,
