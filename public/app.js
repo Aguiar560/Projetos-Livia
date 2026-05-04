@@ -740,7 +740,6 @@ function addRecusadoOption(selectedValue) {
 function openModal(title = 'Novo Projeto') {
   editingId = null;
   document.getElementById('projectForm').reset();
-  document.getElementById('progressLabel').textContent = '0';
   document.getElementById('modal-title').textContent = title;
   document.getElementById('submitBtn').textContent = 'Salvar projeto';
   removeRecusadoOption(); // nunca aparece ao criar
