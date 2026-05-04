@@ -12,39 +12,8 @@ const DB_CONFIG = {
 let POOL = null;
 
 async function ensureDatabaseExists(){
-  const dbName = (DB_CONFIG.database || 'projeto_livia').replace(/`/g, '');
-  // connect without database to create it if necessary
-  const conn = await mysql.createConnection({
-    host: DB_CONFIG.host,
-    port: DB_CONFIG.port,
-    user: DB_CONFIG.user,
-    password: DB_CONFIG.password,
-    charset: 'utf8'
-  });
-  try{
-    // força encoding na conexão de setup
-    await conn.query("SET NAMES 'utf8'");
-    await conn.query("SET character_set_client = utf8");
-    await conn.query("SET character_set_connection = utf8");
-    await conn.query("SET character_set_results = utf8");
-
-    const sql = `CREATE DATABASE IF NOT EXISTS \`${dbName}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`;
-    try{
-      await conn.query(sql);
-    } catch (err){
-      // fallback if server doesn't support utf8mb4
-      if(err && err.code === 'ER_UNKNOWN_CHARACTER_SET'){
-        const fallback = `CREATE DATABASE IF NOT EXISTS \`${dbName}\` CHARACTER SET utf8 COLLATE utf8_general_ci`;
-        await conn.query(fallback);
-      } else {
-        throw err;
-      }
-    }
-    // force encoding on this connection
-    await conn.query("SET NAMES 'utf8mb4'").catch(() => conn.query("SET NAMES 'utf8'"));
-  } finally {
-    await conn.end();
-  }
+  // O banco já existe na Hostinger — apenas retorna o nome limpo
+  const dbName = (DB_CONFIG.database || 'projeto_livia').trim().replace(/`/g, '');
   return dbName;
 }
 
