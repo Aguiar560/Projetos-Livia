@@ -377,9 +377,60 @@
       /* Toast */
       .toast{bottom:20px;right:12px;left:12px;text-align:center}
     }
+
+    /* ── LOGIN SCREEN ──────────────────────────────────────── */
+    #login-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999;flex-direction:column;gap:0}
+    #login-screen.hidden{display:none}
+    .login-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:44px 40px 36px;width:100%;max-width:400px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:24px}
+    .login-logo{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:4px}
+    .login-logo-icon{width:46px;height:46px;background:var(--accent);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.5rem}
+    .login-logo-text{font-size:1.3rem;font-weight:700;color:var(--text)}
+    .login-logo-text small{display:block;font-size:.75rem;font-weight:400;color:var(--text2)}
+    .login-title{font-size:1.05rem;font-weight:600;color:var(--text);text-align:center}
+    .login-fields{display:flex;flex-direction:column;gap:14px}
+    .login-field{display:flex;flex-direction:column;gap:6px}
+    .login-field label{font-size:.8rem;font-weight:500;color:var(--text2);text-transform:uppercase;letter-spacing:.5px}
+    .login-field input{background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:11px 14px;color:var(--text);font-family:inherit;font-size:.95rem;outline:none;transition:border-color .18s}
+    .login-field input:focus{border-color:var(--accent)}
+    .login-btn{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:13px;font-family:inherit;font-size:1rem;font-weight:600;cursor:pointer;transition:all .18s;display:flex;align-items:center;justify-content:center;gap:8px}
+    .login-btn:hover{background:#5650d4;transform:translateY(-1px)}
+    .login-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+    .login-error{background:rgba(255,92,110,.12);border:1px solid var(--danger);border-radius:8px;padding:10px 14px;font-size:.85rem;color:var(--danger);text-align:center;display:none}
+    .login-error.show{display:block}
+    @keyframes loginShake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+    .login-card.shake{animation:loginShake .4s ease}
+    @media(max-width:480px){.login-card{padding:32px 20px 28px;margin:16px}}
   </style>
 </head>
 <body>
+
+<!-- ════════════════ LOGIN SCREEN ════════════════ -->
+<div id="login-screen">
+  <div class="login-card" id="login-card">
+    <div class="login-logo">
+      <div class="login-logo-icon">📋</div>
+      <div class="login-logo-text">
+        Projeto Livia
+        <small>Sistema de Gerenciamento</small>
+      </div>
+    </div>
+    <div class="login-title">Acesso restrito</div>
+    <div class="login-error" id="login-error">Usuário ou senha incorretos</div>
+    <div class="login-fields">
+      <div class="login-field">
+        <label>Usuário</label>
+        <input type="text" id="login-user" autocomplete="username" placeholder="Digite seu usuário" />
+      </div>
+      <div class="login-field">
+        <label>Senha</label>
+        <input type="password" id="login-pass" autocomplete="current-password" placeholder="••••••••" />
+      </div>
+    </div>
+    <button class="login-btn" id="login-btn" onclick="doLogin()">
+      🔓 Entrar
+    </button>
+  </div>
+</div>
 
 <!-- TOPBAR -->
 <div class="topbar">
@@ -391,7 +442,14 @@
       Projeto Livia <span>Sistema de Projetos</span>
     </div>
   </div>
-  <button class="btn btn-primary" onclick="openModal()">＋ Novo Projeto</button>
+  <div style="display:flex;align-items:center;gap:10px">
+    <div id="user-badge" style="font-size:.78rem;color:var(--text2);display:none;align-items:center;gap:6px">
+      <span id="user-badge-icon" style="font-size:.9rem"></span>
+      <span id="user-badge-name"></span>
+      <span id="user-badge-role" style="background:var(--surface2);border-radius:6px;padding:2px 8px;font-size:.7rem;font-weight:600"></span>
+    </div>
+    <button class="btn btn-primary" onclick="openModal()">＋ Novo Projeto</button>
+  </div>
 </div>
 
 <!-- Overlay mobile -->

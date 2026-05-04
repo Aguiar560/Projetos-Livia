@@ -47,18 +47,28 @@ const uploadLimiter = rateLimit({
   message: { error: 'Limite de uploads atingido. Aguarde 15 minutos.' }
 });
 
-// ── 4. Autenticação Básica ────────────────────────────────────────────────────
-const AUTH_USER = process.env.AUTH_USER;
-const AUTH_PASS = process.env.AUTH_PASS;
+// ── 4. Usuários e Roles ───────────────────────────────────────────────────────
+// Formato no .env: USERS=admin:senha1:admin,livia:senha2:comum
+const USER_MAP  = {}; // { usuario: senha }
+const ROLE_MAP  = {}; // { usuario: 'admin' | 'comum' }
 
-if (AUTH_USER && AUTH_PASS) {
+(process.env.USERS || '').split(',').forEach(entry => {
+  const parts = entry.trim().split(':');
+  if (parts.length >= 3) {
+    const [user, pass, role] = parts;
+    USER_MAP[user]  = pass;
+    ROLE_MAP[user]  = role === 'admin' ? 'admin' : 'comum';
+  }
+});
+
+if (Object.keys(USER_MAP).length === 0) {
+  console.warn('[SECURITY] Nenhum usuário configurado em USERS — autenticação desabilitada!');
+} else {
   app.use(basicAuth({
-    users: { [AUTH_USER]: AUTH_PASS },
+    users: USER_MAP,
     challenge: true,
     realm: 'Projeto Livia'
   }));
-} else {
-  console.warn('[SECURITY] AUTH_USER/AUTH_PASS não definidos — autenticação desabilitada!');
 }
 
 // ── 5. Body size limit ────────────────────────────────────────────────────────
@@ -141,6 +151,13 @@ function safeJson(body) {
 }
 
 // ── CRUD endpoints ────────────────────────────────────────────────────────────
+// Quem sou eu? — retorna usuário e role para o frontend
+app.get('/api/me', (req, res) => {
+  const user = req.auth?.user || null;
+  const role = ROLE_MAP[user] || 'comum';
+  res.json({ user, role });
+});
+
 app.get('/api/projects', async (req, res) => {
   try {
     const projects = await db.getAllProjects();

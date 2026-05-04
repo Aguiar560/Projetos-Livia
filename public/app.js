@@ -249,8 +249,23 @@ let currentFilter = '';
 let editingId = null;
 
 // ── API helpers ─────────────────────────────────────────────────────────────
+function authHeader() {
+  const token = sessionStorage.getItem('auth');
+  return token ? { 'Authorization': 'Basic ' + token } : {};
+}
+
 async function api(url, options = {}) {
+  options.headers = Object.assign({}, authHeader(), options.headers || {});
   const res = await fetch(url, options);
+  if (res.status === 401) {
+    // Sessão expirada — volta para login
+    sessionStorage.removeItem('auth');
+    document.getElementById('login-screen').classList.remove('hidden');
+    document.getElementById('login-user').value = '';
+    document.getElementById('login-pass').value = '';
+    setTimeout(() => document.getElementById('login-user').focus(), 100);
+    throw new Error('Sessão expirada. Faça login novamente.');
+  }
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
@@ -260,6 +275,20 @@ async function load() {
     allProjects = await api('/api/projects');
     updateStats();
     renderList();
+    // Exibe badge do usuário na topbar
+    const badgeEl   = document.getElementById('user-badge');
+    const nameEl    = document.getElementById('user-badge-name');
+    const roleEl    = document.getElementById('user-badge-role');
+    const iconEl    = document.getElementById('user-badge-icon');
+    const storedUser = sessionStorage.getItem('user');
+    const storedRole = userRole();
+    if (badgeEl && storedUser) {
+      nameEl.textContent = storedUser;
+      roleEl.textContent = storedRole === 'admin' ? '👑 Admin' : '👤 Comum';
+      roleEl.style.color = storedRole === 'admin' ? 'var(--warn)' : 'var(--text2)';
+      iconEl.textContent = storedRole === 'admin' ? '🔑' : '';
+      badgeEl.style.display = 'flex';
+    }
   } catch (e) {
     showToast('Erro ao carregar projetos', 'error');
   }
@@ -348,7 +377,7 @@ function renderList() {
       ${attCount > 0 ? `<div style="font-size:.78rem;color:var(--text2)">📎 ${attCount} anexo${attCount > 1 ? 's' : ''}</div>` : ''}
       <div class="card-actions">
         <button class="btn btn-primary" style="flex:2" onclick="openProject(${p.id})">Detalhes</button>
-        ${(p.status === 'em andamento' || p.status === 'futuro') ? `<button class="btn btn-ghost" onclick="editProject(${p.id})">✏️</button>` : ''}
+        ${(isAdmin() || p.status === 'em andamento' || p.status === 'futuro') ? `<button class="btn btn-ghost" onclick="editProject(${p.id})">✏️</button>` : ''}
         <button class="btn btn-danger" onclick="deleteProject(${p.id})">🗑</button>
       </div>
     </div>`;
@@ -444,7 +473,7 @@ async function openProject(id) {
         <span class="badge badge-${slug}">${esc(p.status)}</span>
       </div>
       <div class="detail-top-actions">
-        ${(p.status === 'em andamento' || p.status === 'futuro') ? `<button class="btn btn-ghost" onclick="editProject(${p.id})">✏️ Editar</button>` : ''}
+        ${(isAdmin() || p.status === 'em andamento' || p.status === 'futuro') ? `<button class="btn btn-ghost" onclick="editProject(${p.id})">✏️ Editar</button>` : ''}
         <button class="btn btn-danger" onclick="deleteProject(${p.id})">🗑 Excluir</button>
       </div>
     </div>
@@ -576,7 +605,10 @@ async function openProject(id) {
 
   document.getElementById('grid-view').style.display = 'none';
   document.getElementById('detail-view').style.display = 'block';
-  document.querySelector('.main').scrollTop = 0;
+  // Rola para o topo — compatível com mobile (scroll no window) e desktop (scroll no .main)
+  const mainEl = document.querySelector('.main');
+  if (mainEl) mainEl.scrollTop = 0;
+  window.scrollTo({ top: 0, behavior: 'instant' });
 
   // Carrega dados dinâmicos
   loadInstitutions(p.id, Number(p.budget) || 0, p.currency);
@@ -605,7 +637,7 @@ async function saveEdital(projectId) {
   try {
     const fd = new FormData();
     fd.append('payload', JSON.stringify({ edital_name: val, edital_url: url }));
-    await fetch(`/api/projects/${projectId}`, { method: 'PUT', body: fd });
+    await fetch(`/api/projects/${projectId}`, { method: 'PUT', body: fd, headers: authHeader() });
     // Atualiza allProjects localmente
     const proj = allProjects.find(x => x.id === projectId);
     if (proj) { proj.edital_name = val; proj.edital_url = url; }
@@ -901,7 +933,7 @@ async function saveEditPhase(phaseId, projectId, currency) {
   try {
     const fd = new FormData();
     fd.append('payload', JSON.stringify(data));
-    await fetch(`/api/projects/${projectId}/phases/${phaseId}`, { method: 'PUT', body: fd });
+    await fetch(`/api/projects/${projectId}/phases/${phaseId}`, { method: 'PUT', body: fd, headers: authHeader() });
     const proj = allProjects.find(x => x.id === projectId);
     await loadPhases(projectId, Number(proj?.budget) || 0, proj?.currency || 'BRL');
     showToast('Fase atualizada!', 'success');
@@ -914,7 +946,7 @@ async function uploadPhaseAttachments(phaseId, projectId) {
   const fd = new FormData();
   for (const f of input.files) fd.append('phase_attachments', f);
   try {
-    const res = await fetch(`/api/projects/${projectId}/phases/${phaseId}/attachments`, { method: 'POST', body: fd });
+    const res = await fetch(`/api/projects/${projectId}/phases/${phaseId}/attachments`, { method: 'POST', body: fd, headers: authHeader() });
     if (!res.ok) throw new Error();
     const proj = allProjects.find(x => x.id === projectId);
     await loadPhases(projectId, Number(proj?.budget) || 0, proj?.currency || 'BRL');
@@ -1050,7 +1082,7 @@ document.getElementById('projectForm').addEventListener('submit', async e => {
   const method = editingId ? 'PUT' : 'POST';
 
   try {
-    await fetch(url, { method, body: fd });
+    await fetch(url, { method, body: fd, headers: authHeader() });
     const savedId = editingId;
     closeModal();
     showToast(savedId ? 'Projeto atualizado!' : 'Projeto criado!', 'success');
@@ -1067,6 +1099,78 @@ document.getElementById('projectForm').addEventListener('submit', async e => {
   }
 });
 
+// ── Login ─────────────────────────────────────────────────────────────────────
+// Helper de role — retorna 'admin' ou 'comum'
+function userRole() {
+  return sessionStorage.getItem('role') || 'comum';
+}
+function isAdmin() {
+  return userRole() === 'admin';
+}
+
+(function initLogin() {
+  // Verifica se já está autenticado nesta sessão
+  if (sessionStorage.getItem('auth')) {
+    document.getElementById('login-screen').classList.add('hidden');
+    return;
+  }
+  // Permite entrar com Enter nos campos
+  ['login-user', 'login-pass'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => {
+      if (e.key === 'Enter') doLogin();
+    });
+  });
+  // Foca no campo usuário ao abrir
+  setTimeout(() => document.getElementById('login-user').focus(), 100);
+})();
+
+async function doLogin() {
+  const user = document.getElementById('login-user').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  const btn  = document.getElementById('login-btn');
+  const errEl = document.getElementById('login-error');
+  const card  = document.getElementById('login-card');
+
+  if (!user || !pass) {
+    errEl.textContent = 'Preencha usuário e senha';
+    errEl.classList.add('show');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Verificando...';
+  errEl.classList.remove('show');
+
+  try {
+    const token = btoa(user + ':' + pass);
+    const headers = { 'Authorization': 'Basic ' + token };
+
+    // 1. Valida credenciais
+    const res = await fetch('/api/projects', { headers });
+    if (!res.ok) throw new Error('unauthorized');
+
+    // 2. Busca role do usuário
+    const me = await fetch('/api/me', { headers }).then(r => r.json());
+
+    sessionStorage.setItem('auth', token);
+    sessionStorage.setItem('role', me.role || 'comum');
+    sessionStorage.setItem('user', me.user || user);
+
+    document.getElementById('login-screen').classList.add('hidden');
+    load();
+  } catch {
+    errEl.textContent = 'Usuário ou senha incorretos';
+    errEl.classList.add('show');
+    card.classList.add('shake');
+    setTimeout(() => card.classList.remove('shake'), 450);
+    document.getElementById('login-pass').value = '';
+    document.getElementById('login-pass').focus();
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔓 Entrar';
+  }
+}
+
 // ── Toast ─────────────────────────────────────────────────────────────────────
 function showToast(msg, type = 'success') {
   const t = document.getElementById('toast');
@@ -1076,4 +1180,5 @@ function showToast(msg, type = 'success') {
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-load();
+// load() só é chamado após login bem-sucedido (ou se já autenticado)
+if (sessionStorage.getItem('auth')) load();
