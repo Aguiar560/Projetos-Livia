@@ -1,0 +1,840 @@
+// ── Currency helper ───────────────────────────────────────────────────────────
+const CURRENCY_MAP = {
+  BRL: { locale: 'pt-BR', code: 'BRL', symbol: 'R$' },
+  USD: { locale: 'en-US', code: 'USD', symbol: 'US$' },
+  EUR: { locale: 'de-DE', code: 'EUR', symbol: '€' }
+};
+
+function formatBudget(value, currency) {
+  if (value === null || value === undefined || value === '') return '—';
+  const cur = CURRENCY_MAP[currency] || CURRENCY_MAP['BRL'];
+  return new Intl.NumberFormat(cur.locale, {
+    style: 'currency',
+    currency: cur.code,
+    minimumFractionDigits: 2
+  }).format(Number(value));
+}
+
+function formatDate(val) {
+  if (!val) return '—';
+  const d = new Date(val);
+  if (isNaN(d)) return '—';
+  return d.toLocaleDateString('pt-BR');
+}
+
+function dateVal(val) {
+  if (!val) return '';
+  return String(val).substring(0, 10);
+}
+
+let allProjects = [];
+let currentFilter = '';
+let editingId = null;
+
+// ── API helpers ─────────────────────────────────────────────────────────────
+async function api(url, options = {}) {
+  const res = await fetch(url, options);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+async function load() {
+  try {
+    allProjects = await api('/api/projects');
+    updateStats();
+    renderList();
+  } catch (e) {
+    showToast('Erro ao carregar projetos', 'error');
+  }
+}
+
+// ── Stats ───────────────────────────────────────────────────────────────────
+function updateStats() {
+  const count = s => allProjects.filter(p => !s || p.status === s).length;
+  document.getElementById('s-all').textContent = allProjects.length;
+  document.getElementById('s-realizado').textContent = count('realizado');
+  document.getElementById('s-andamento').textContent = count('em andamento');
+  document.getElementById('s-futuro').textContent = count('futuro');
+  document.getElementById('s-recusado').textContent = count('recusado');
+  document.getElementById('cnt-all').textContent = allProjects.length;
+  document.getElementById('cnt-realizado').textContent = count('realizado');
+  document.getElementById('cnt-andamento').textContent = count('em andamento');
+  document.getElementById('cnt-futuro').textContent = count('futuro');
+  document.getElementById('cnt-recusado').textContent = count('recusado');
+}
+
+// ── Filter ───────────────────────────────────────────────────────────────────
+function setFilter(btn, filter) {
+  currentFilter = filter;
+  document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const titles = { '': 'Todos os Projetos', 'realizado': 'Projetos Realizados', 'em andamento': 'Em Andamento', 'futuro': 'Projetos Futuros', 'recusado': 'Projetos Recusados' };
+  document.getElementById('page-title').textContent = titles[filter] || 'Projetos';
+  renderList();
+}
+
+// ── Render cards ─────────────────────────────────────────────────────────────
+function renderList() {
+  const q = (document.getElementById('searchInput').value || '').toLowerCase();
+  const filtered = allProjects.filter(p => {
+    const matchFilter = !currentFilter || p.status === currentFilter;
+    const matchSearch = !q ||
+      (p.name || '').toLowerCase().includes(q) ||
+      (p.description || '').toLowerCase().includes(q) ||
+      (p.client || '').toLowerCase().includes(q) ||
+      (Array.isArray(p.tags) ? p.tags : []).some(t => t.toLowerCase().includes(q));
+    return matchFilter && matchSearch;
+  });
+
+  const container = document.getElementById('list');
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="empty" style="grid-column:1/-1">
+      <svg width="64" height="64" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" stroke-width="1.5"/><path d="M8 12h8M8 8h5M8 16h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <p>Nenhum projeto encontrado</p>
+    </div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(p => {
+    const slug = p.status === 'em andamento' ? 'andamento' : p.status;
+    const progress = Number(p.progress) || 0;
+    const progressColor = progress >= 80 ? 'var(--realizado)' : progress >= 40 ? 'var(--andamento)' : 'var(--futuro)';
+    const budget = formatBudget(p.budget, p.currency);
+    const attCount = parseAttachments(p.attachments).filter(a => a && a.filename).length;
+
+    return `<div class="card">
+      <div class="card-accent-bar bar-${slug}"></div>
+      <div class="card-header">
+        <div class="card-title">${esc(p.name)}</div>
+        <span class="badge badge-${slug}">${esc(p.status)}</span>
+      </div>
+      ${p.description ? `<div class="card-desc">${esc(p.description)}</div>` : ''}
+      <div class="card-meta">
+        <div class="meta-item"><span class="meta-label">Cliente</span><span class="meta-value">${esc(p.client || '—')}</span></div>
+        <div class="meta-item"><span class="meta-label">Orçamento</span><span class="meta-value" style="color:var(--realizado);font-weight:700">${budget}</span></div>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-row">
+          <span class="meta-label">Progresso</span>
+          <span style="font-size:.82rem;font-weight:700;color:${progressColor}">${progress}%</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" style="width:${progress}%;background:${progressColor}"></div>
+        </div>
+      </div>
+      ${attCount > 0 ? `<div style="font-size:.78rem;color:var(--text2)">📎 ${attCount} anexo${attCount > 1 ? 's' : ''}</div>` : ''}
+      <div class="card-actions">
+        <button class="btn btn-primary" style="flex:2" onclick="openProject(${p.id})">🔍 Ver projeto</button>
+        <button class="btn btn-ghost" onclick="editProject(${p.id})">✏️</button>
+        <button class="btn btn-danger" onclick="deleteProject(${p.id})">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function esc(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fileIcon(name) {
+  const ext = (name || '').split('.').pop().toLowerCase();
+  const map = { pdf:'📄', doc:'📝', docx:'📝', xls:'📊', xlsx:'📊', ppt:'📋', pptx:'📋', jpg:'🖼️', jpeg:'🖼️', png:'🖼️', gif:'🖼️', zip:'🗜️', rar:'🗜️', mp4:'🎬', mp3:'🎵' };
+  return map[ext] || '📎';
+}
+
+function parseAttachments(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
+}
+
+function renderAttachments(p) {
+  const atts = parseAttachments(p.attachments).filter(a => a && a.filename);
+  if (!atts.length) return '';
+  const items = atts.map(a => `
+    <a class="att-item" href="/api/projects/${p.id}/attachments/${encodeURIComponent(a.filename)}" download="${esc(a.originalname)}" title="Baixar ${esc(a.originalname)}">
+      <span class="att-icon">${fileIcon(a.originalname)}</span>
+      <span class="att-name">${esc(a.originalname)}</span>
+      <span class="att-dl">⬇</span>
+    </a>`).join('');
+  return `<div class="card-divider">📎 Anexos</div><div class="att-list">${items}</div>`;
+}
+
+function renderAttachments(p) {
+  const atts = parseAttachments(p.attachments).filter(a => a && a.filename);
+  if (!atts.length) return '';
+  const items = atts.map(a => `
+    <a class="att-item" href="/api/projects/${p.id}/attachments/${encodeURIComponent(a.filename)}" download="${esc(a.originalname)}" title="Baixar ${esc(a.originalname)}">
+      <span class="att-icon">${fileIcon(a.originalname)}</span>
+      <span class="att-name">${esc(a.originalname)}</span>
+      <span class="att-dl">⬇</span>
+    </a>`).join('');
+  return `<div class="att-list">${items}</div>`;
+}
+
+// ── Detail view ───────────────────────────────────────────────────────────────
+let _detailProjectId = null;
+
+async function openProject(id) {
+  const p = allProjects.find(x => x.id === id);
+  if (!p) return;
+  _detailProjectId = id;
+
+  const slug = p.status === 'em andamento' ? 'andamento' : p.status;
+  const progress = Number(p.progress) || 0;
+  const progressColor = progress >= 80 ? 'var(--realizado)' : progress >= 40 ? 'var(--andamento)' : 'var(--futuro)';
+  const budget = formatBudget(p.budget, p.currency);
+  const tags = (Array.isArray(p.tags) ? p.tags : []).filter(Boolean);
+  const atts = parseAttachments(p.attachments).filter(a => a && a.filename);
+
+  const field = (label, value, highlight = false) => `
+    <div class="detail-field">
+      <span class="detail-label">${label}</span>
+      <span class="detail-value${highlight ? ' highlight' : ''}">${value || '—'}</span>
+    </div>`;
+
+  const attHtml = atts.length
+    ? atts.map(a => `
+        <a class="att-item" href="/api/projects/${p.id}/attachments/${encodeURIComponent(a.filename)}" download="${esc(a.originalname)}">
+          <span class="att-icon">${fileIcon(a.originalname)}</span>
+          <span class="att-name">${esc(a.originalname)}</span>
+          <span class="att-dl">⬇ Baixar</span>
+        </a>`).join('')
+    : '<span class="detail-empty">Nenhum anexo</span>';
+
+  const tagsHtml = tags.length
+    ? tags.map(t => `<span class="tag">${esc(t)}</span>`).join('')
+    : '<span class="detail-empty">Nenhuma tag</span>';
+
+  const editalVal = p.edital_name ? esc(p.edital_name) : '';
+
+  document.getElementById('detail-view').innerHTML = `
+    <button class="detail-back" onclick="closeProject()">← Voltar para lista</button>
+    <div class="detail-top">
+      <div class="detail-title-area">
+        <div style="height:4px;width:60px;border-radius:2px;background:var(--${slug})"></div>
+        <div class="detail-title">${esc(p.name)}</div>
+        <span class="badge badge-${slug}">${esc(p.status)}</span>
+      </div>
+      <div class="detail-top-actions">
+        <button class="btn btn-ghost" onclick="editProject(${p.id})">✏️ Editar</button>
+        <button class="btn btn-danger" onclick="deleteProject(${p.id})">🗑 Excluir</button>
+      </div>
+    </div>
+
+    <div class="detail-body">
+
+      <div class="detail-section full">
+        <div class="detail-section-title">Informações do Edital</div>
+        <div class="detail-fields">
+          <div class="detail-field wide">
+            <span class="detail-label">Nome do Edital</span>
+            <div class="edital-edit">
+              <span class="edital-val" id="edital-val-display">${editalVal || '<span style="color:var(--text2);font-style:italic">Não informado</span>'}</span>
+              <button class="btn-sm ghost" onclick="startEditEdital()">✏️</button>
+            </div>
+            <div id="edital-edit-form" style="display:none;margin-top:6px">
+              <div style="display:flex;gap:8px">
+                <input class="edital-input" id="edital-input" value="${editalVal}" placeholder="Nome do edital..." />
+                <button class="btn-sm primary" onclick="saveEdital(${p.id})">✔ Salvar</button>
+                <button class="btn-sm ghost" onclick="cancelEditEdital()">✕</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      ${p.description ? `
+      <div class="detail-section full">
+        <div class="detail-section-title">Descrição</div>
+        <div class="detail-desc">${esc(p.description)}</div>
+      </div>` : ''}
+
+      <div class="detail-section">
+        <div class="detail-section-title">Informações Gerais</div>
+        <div class="detail-fields">
+          ${field('Cliente', esc(p.client))}
+          ${field('Orçamento Total', budget, true)}
+          ${field('Moeda', p.currency === 'BRL' ? '🇧🇷 Real (R$)' : p.currency === 'USD' ? '🇺🇸 Dólar (US$)' : '🇪🇺 Euro (€)')}
+          ${field('Status', esc(p.status))}
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">Progresso Geral</div>
+        <div class="detail-progress-row">
+          <span class="detail-label">Conclusão</span>
+          <span style="font-weight:700;color:${progressColor};font-size:1.4rem">${progress}%</span>
+        </div>
+        <div class="detail-progress-bar">
+          <div class="detail-progress-fill" style="width:${progress}%;background:${progressColor}"></div>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">Inscrição</div>
+        <div class="detail-fields">
+          ${field('Início das inscrições', formatDate(p.inscription_start))}
+          ${field('Final das inscrições', formatDate(p.inscription_end))}
+          ${field('Resposta da inscrição', formatDate(p.inscription_response))}
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">Execução do Projeto</div>
+        <div class="detail-fields">
+          ${field('Início do projeto', formatDate(p.project_start))}
+          ${field('Final do projeto', formatDate(p.project_end))}
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">Tags</div>
+        <div class="detail-tags">${tagsHtml}</div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">Anexos</div>
+        <div class="att-list">${attHtml}</div>
+      </div>
+
+      <!-- Institutions -->
+      <div class="detail-section full" id="section-institutions">
+        <div class="detail-section-title">
+          Instituições Participantes
+          <span style="margin-left:auto;font-size:.72rem;color:var(--text2)" id="inst-pct-total"></span>
+        </div>
+        <div class="inline-section" id="institutions-container">
+          <span class="detail-empty">Carregando...</span>
+        </div>
+        <div class="inline-add-bar" id="inst-add-bar">
+          <input id="inst-name-input" placeholder="Nome da instituição..." />
+          <input id="inst-val-input" type="number" min="0" step="0.01" placeholder="Valor alocado (R$)" style="max-width:180px" />
+          <button class="btn-sm primary" onclick="addInstitution(${p.id})">＋ Adicionar</button>
+        </div>
+      </div>
+
+      <!-- Phases -->
+      <div class="detail-section full" id="section-phases">
+        <div class="detail-section-title">Fases do Projeto</div>
+        <div class="inline-section" id="phases-container">
+          <span class="detail-empty">Carregando...</span>
+        </div>
+        <div style="margin-top:12px">
+          <button class="btn-sm primary" onclick="showNewPhaseForm(${p.id})">＋ Nova Fase</button>
+        </div>
+        <div id="new-phase-form" style="display:none" class="phase-edit-form">
+          <div><span class="phase-form-label">Nome da fase *</span><input id="nph-name" placeholder="Ex: Elaboração do projeto" /></div>
+          <div><span class="phase-form-label">Descrição</span><textarea id="nph-desc" placeholder="Descreva esta fase..."></textarea></div>
+          <div class="phase-form-row">
+            <div><span class="phase-form-label">Orçamento (R$)</span><input id="nph-budget" type="number" min="0" step="0.01" placeholder="0,00" /></div>
+            <div><span class="phase-form-label">Progresso (%)</span><input id="nph-progress" type="number" min="0" max="100" placeholder="0" /></div>
+          </div>
+          <div class="phase-form-actions">
+            <button class="btn-sm ghost" onclick="cancelNewPhase()">Cancelar</button>
+            <button class="btn-sm primary" onclick="saveNewPhase(${p.id})">✔ Salvar fase</button>
+          </div>
+        </div>
+      </div>
+
+    </div>`;
+
+  document.getElementById('grid-view').style.display = 'none';
+  document.getElementById('detail-view').style.display = 'block';
+  document.querySelector('.main').scrollTop = 0;
+
+  // Carrega dados dinâmicos
+  loadInstitutions(p.id, Number(p.budget) || 0, p.currency);
+  loadPhases(p.id, Number(p.budget) || 0, p.currency);
+}
+
+function closeProject() {
+  document.getElementById('detail-view').style.display = 'none';
+  document.getElementById('grid-view').style.display = 'block';
+  _detailProjectId = null;
+}
+
+// ── Edital inline edit ────────────────────────────────────────────────────────
+function startEditEdital() {
+  document.getElementById('edital-val-display').parentElement.style.display = 'none';
+  document.getElementById('edital-edit-form').style.display = 'block';
+  document.getElementById('edital-input').focus();
+}
+function cancelEditEdital() {
+  document.getElementById('edital-val-display').parentElement.style.display = 'flex';
+  document.getElementById('edital-edit-form').style.display = 'none';
+}
+async function saveEdital(projectId) {
+  const val = document.getElementById('edital-input').value.trim();
+  try {
+    const fd = new FormData();
+    fd.append('payload', JSON.stringify({ edital_name: val }));
+    await fetch(`/api/projects/${projectId}`, { method: 'PUT', body: fd });
+    // Atualiza allProjects localmente
+    const proj = allProjects.find(x => x.id === projectId);
+    if (proj) proj.edital_name = val;
+    document.getElementById('edital-val-display').innerHTML = val
+      ? esc(val)
+      : '<span style="color:var(--text2);font-style:italic">Não informado</span>';
+    cancelEditEdital();
+    showToast('Edital atualizado!', 'success');
+  } catch { showToast('Erro ao salvar edital', 'error'); }
+}
+
+// ── Institutions ──────────────────────────────────────────────────────────────
+async function loadInstitutions(projectId, totalBudget, currency) {
+  const container = document.getElementById('institutions-container');
+  if (!container) return;
+  try {
+    const list = await api(`/api/projects/${projectId}/institutions`);
+    renderInstitutions(container, list, projectId, totalBudget, currency);
+  } catch { container.innerHTML = '<span class="detail-empty">Erro ao carregar</span>'; }
+}
+
+function renderInstitutions(container, list, projectId, totalBudget, currency) {
+  // Calcula com base nos valores absolutos salvos no banco
+  const totalAllocated = list.reduce((s, i) => s + Number(i.budget_value || 0), 0);
+  const remaining = totalBudget - totalAllocated;
+  const totalPct = totalBudget > 0 ? (totalAllocated / totalBudget * 100) : 0;
+
+  const totalEl = document.getElementById('inst-pct-total');
+  if (totalEl) {
+    if (totalPct > 100) {
+      totalEl.innerHTML = `<span style="color:var(--danger)">⚠️ ${formatBudget(totalAllocated, currency)} — ACIMA DO ORÇAMENTO</span>`;
+    } else if (Math.round(totalPct * 100) === 10000) {
+      totalEl.innerHTML = `<span style="color:var(--realizado)">✅ ${formatBudget(totalAllocated, currency)} — 100% alocado</span>`;
+    } else {
+      totalEl.innerHTML = `${formatBudget(totalAllocated, currency)} alocado &nbsp;·&nbsp; <span style="color:var(--accent)">Disponível: ${formatBudget(remaining, currency)}</span>`;
+    }
+  }
+
+  if (!list.length) {
+    container.innerHTML = '<span class="detail-empty">Nenhuma instituição cadastrada</span>';
+    return;
+  }
+
+  container.innerHTML = `
+    <table class="inst-table">
+      <thead><tr>
+        <th>Instituição</th>
+        <th style="text-align:right">Valor alocado</th>
+        <th style="text-align:right">% do orçamento</th>
+        <th></th>
+      </tr></thead>
+      <tbody>
+        ${list.map(inst => {
+          const val = Number(inst.budget_value) || 0;
+          const pct = totalBudget > 0 ? (val / totalBudget * 100) : 0;
+          return `<tr>
+            <td>${esc(String(inst.name).toUpperCase())}</td>
+            <td style="text-align:right"><span class="inst-val">${formatBudget(val, currency)}</span></td>
+            <td style="text-align:right"><span class="inst-pct">${pct.toFixed(2)}%</span></td>
+            <td><div class="inst-actions">
+              <button class="btn-sm ghost" onclick="editInstitution(${inst.id},${projectId},${totalBudget},'${currency}',${val})">✏️</button>
+              <button class="btn-sm danger" onclick="deleteInstitution(${inst.id},${projectId})">🗑</button>
+            </div></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+async function addInstitution(projectId) {
+  const name = document.getElementById('inst-name-input').value.trim().toUpperCase();
+  const rawVal = parseFloat(document.getElementById('inst-val-input').value);
+  if (!name) { showToast('Informe o nome da instituição', 'error'); return; }
+  if (isNaN(rawVal) || rawVal <= 0) { showToast('Informe um valor válido', 'error'); return; }
+
+  const proj = allProjects.find(x => x.id === projectId);
+  const totalBudget = Number(proj?.budget) || 0;
+
+  // Busca lista atual para validar soma
+  const currentList = await api(`/api/projects/${projectId}/institutions`);
+  const alreadyAllocated = currentList.reduce((s, i) => s + Number(i.budget_value || 0), 0);
+  if (totalBudget > 0 && alreadyAllocated + rawVal > totalBudget) {
+    const avail = totalBudget - alreadyAllocated;
+    showToast(`Valor excede o orçamento! Disponível: ${formatBudget(avail, proj?.currency || 'BRL')}`, 'error');
+    return;
+  }
+
+  try {
+    await api(`/api/projects/${projectId}/institutions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, budget_value: rawVal })
+    });
+    document.getElementById('inst-name-input').value = '';
+    document.getElementById('inst-val-input').value = '';
+    await loadInstitutions(projectId, totalBudget, proj?.currency || 'BRL');
+    showToast('Instituição adicionada!', 'success');
+  } catch { showToast('Erro ao adicionar', 'error'); }
+}
+
+async function editInstitution(instId, projectId, totalBudget, currency, currentVal) {
+  const newName = prompt('Nome da instituição:', '');
+  const nameEl = document.getElementById(`inst-name-${instId}`);
+  const resolvedName = (newName !== null ? newName : (nameEl ? nameEl.textContent : '')).trim().toUpperCase();
+  if (!resolvedName) return;
+
+  const newValStr = prompt(`Valor alocado (orçamento total: ${formatBudget(totalBudget, currency)}):`, currentVal);
+  if (newValStr === null) return;
+  const newVal = parseFloat(newValStr) || 0;
+
+  // Valida: soma dos outros + novo valor <= totalBudget
+  const currentList = await api(`/api/projects/${projectId}/institutions`);
+  const othersAllocated = currentList
+    .filter(i => i.id !== instId)
+    .reduce((s, i) => s + Number(i.budget_value || 0), 0);
+  if (totalBudget > 0 && othersAllocated + newVal > totalBudget) {
+    const avail = totalBudget - othersAllocated;
+    showToast(`Valor excede o orçamento! Máximo para esta instituição: ${formatBudget(avail, currency)}`, 'error');
+    return;
+  }
+
+  try {
+    await api(`/api/projects/${projectId}/institutions/${instId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: resolvedName, budget_value: newVal })
+    });
+    const proj = allProjects.find(x => x.id === projectId);
+    await loadInstitutions(projectId, Number(proj?.budget) || 0, proj?.currency || 'BRL');
+    showToast('Instituição atualizada!', 'success');
+  } catch { showToast('Erro ao editar', 'error'); }
+}
+
+async function deleteInstitution(instId, projectId) {
+  if (!confirm('Remover esta instituição?')) return;
+  try {
+    await api(`/api/projects/${projectId}/institutions/${instId}`, { method: 'DELETE' });
+    const proj = allProjects.find(x => x.id === projectId);
+    await loadInstitutions(projectId, Number(proj?.budget) || 0, proj?.currency || 'BRL');
+    showToast('Instituição removida', 'success');
+  } catch { showToast('Erro ao remover', 'error'); }
+}
+
+// ── Phases ────────────────────────────────────────────────────────────────────
+async function loadPhases(projectId, totalBudget, currency) {
+  const container = document.getElementById('phases-container');
+  if (!container) return;
+  try {
+    const list = await api(`/api/projects/${projectId}/phases`);
+    renderPhases(container, list, projectId, totalBudget, currency);
+    updateGeneralProgress(list);
+  } catch { container.innerHTML = '<span class="detail-empty">Erro ao carregar</span>'; }
+}
+
+function updateGeneralProgress(phases) {
+  if (!phases || !phases.length) return;
+  const avg = Math.round(phases.reduce((s, ph) => s + (Number(ph.progress) || 0), 0) / phases.length);
+  const progColor = avg >= 80 ? 'var(--realizado)' : avg >= 40 ? 'var(--andamento)' : 'var(--futuro)';
+  // Atualiza a barra de progresso geral na tela de detalhe
+  const fill = document.querySelector('.detail-progress-fill');
+  const label = document.querySelector('.detail-progress-row span[style*="font-weight:700"]');
+  if (fill) fill.style.width = `${avg}%`, fill.style.background = progColor;
+  if (label) label.textContent = `${avg}%`, label.style.color = progColor;
+}
+
+function renderPhases(container, list, projectId, totalBudget, currency) {
+  if (!list.length) {
+    container.innerHTML = '<span class="detail-empty">Nenhuma fase cadastrada</span>';
+    return;
+  }
+  container.innerHTML = `<div class="phase-list">
+    ${list.map((ph, idx) => {
+      const prog = Number(ph.progress) || 0;
+      const progColor = prog >= 80 ? 'var(--realizado)' : prog >= 40 ? 'var(--andamento)' : 'var(--futuro)';
+      const atts = parseAttachments(ph.attachments).filter(a => a && a.filename);
+      const attHtml = atts.length
+        ? `<div class="phase-att-list">${atts.map(a => `
+            <div class="phase-att-item">
+              <span>${fileIcon(a.originalname)}</span>
+              <span class="phase-att-name" title="${esc(a.originalname)}">${esc(a.originalname)}</span>
+              <div class="phase-att-actions">
+                <a href="/api/projects/${projectId}/phases/${ph.id}/attachments/${encodeURIComponent(a.filename)}" download="${esc(a.originalname)}" class="btn-sm ghost" title="Baixar">⬇</a>
+                <button class="btn-sm danger" onclick="removePhaseAttachment(${ph.id},${projectId},'${encodeURIComponent(a.filename)}')" title="Remover">✕</button>
+              </div>
+            </div>`).join('')}</div>`
+        : '';
+
+      return `<div class="phase-item" id="phase-item-${ph.id}">
+        <div class="phase-header">
+          <span class="phase-num">Fase ${idx + 1}</span>
+          <span class="phase-name">${esc(ph.name)}</span>
+          <div style="display:flex;gap:5px">
+            <button class="btn-sm ghost" onclick="showEditPhaseForm(${ph.id},${projectId},'${currency}')">✏️</button>
+            <button class="btn-sm danger" onclick="deletePhase(${ph.id},${projectId},'${currency}')">🗑</button>
+          </div>
+        </div>
+        ${ph.description ? `<div class="phase-desc">${esc(ph.description)}</div>` : ''}
+        <div class="phase-meta-row">
+          <span class="phase-budget">💰 ${formatBudget(ph.budget, currency)}</span>
+          <div class="phase-progress-wrap">
+            <span class="phase-progress-label">Andamento</span>
+            <div class="phase-progress-bar"><div class="phase-progress-fill" style="width:${prog}%;background:${progColor}"></div></div>
+            <span class="phase-pct" style="color:${progColor}">${prog}%</span>
+          </div>
+        </div>
+
+        <div class="phase-att-section">
+          <div class="phase-att-title">
+            <span>📎 Anexos ${atts.length ? `(${atts.length})` : ''}</span>
+          </div>
+          ${attHtml}
+          <div class="phase-upload-row">
+            <input type="file" id="phase-file-${ph.id}" multiple />
+            <button class="btn-sm primary" onclick="uploadPhaseAttachments(${ph.id},${projectId})">⬆ Enviar</button>
+          </div>
+        </div>
+
+        <div id="phase-edit-form-${ph.id}" style="display:none" class="phase-edit-form">
+          <div><span class="phase-form-label">Nome da fase *</span><input id="eph-name-${ph.id}" value="${esc(ph.name)}" /></div>
+          <div><span class="phase-form-label">Descrição</span><textarea id="eph-desc-${ph.id}">${esc(ph.description || '')}</textarea></div>
+          <div class="phase-form-row">
+            <div><span class="phase-form-label">Orçamento</span><input id="eph-budget-${ph.id}" type="number" min="0" step="0.01" value="${ph.budget || 0}" /></div>
+            <div><span class="phase-form-label">Progresso (%)</span><input id="eph-progress-${ph.id}" type="number" min="0" max="100" value="${ph.progress || 0}" /></div>
+          </div>
+          <div class="phase-form-row">
+            <div><span class="phase-form-label">Ordem</span><input id="eph-order-${ph.id}" type="number" min="0" value="${ph.order_num || 0}" /></div>
+          </div>
+          <div class="phase-form-actions">
+            <button class="btn-sm ghost" onclick="document.getElementById('phase-edit-form-${ph.id}').style.display='none'">Cancelar</button>
+            <button class="btn-sm primary" onclick="saveEditPhase(${ph.id},${projectId},'${currency}')">✔ Salvar</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function showNewPhaseForm(projectId) {
+  document.getElementById('new-phase-form').style.display = 'flex';
+  document.getElementById('new-phase-form').style.flexDirection = 'column';
+  document.getElementById('nph-name').focus();
+}
+function cancelNewPhase() {
+  document.getElementById('new-phase-form').style.display = 'none';
+  ['nph-name','nph-desc','nph-budget','nph-progress'].forEach(id => { document.getElementById(id).value = ''; });
+}
+async function saveNewPhase(projectId) {
+  const name = document.getElementById('nph-name').value.trim();
+  if (!name) { showToast('Nome da fase é obrigatório', 'error'); return; }
+  const data = {
+    name,
+    description: document.getElementById('nph-desc').value,
+    budget: document.getElementById('nph-budget').value || 0,
+    progress: document.getElementById('nph-progress').value || 0,
+    order_num: document.querySelectorAll('.phase-item').length
+  };
+  try {
+    await api(`/api/projects/${projectId}/phases`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    cancelNewPhase();
+    const proj = allProjects.find(x => x.id === projectId);
+    await loadPhases(projectId, Number(proj?.budget) || 0, proj?.currency || 'BRL');
+    showToast('Fase criada!', 'success');
+  } catch { showToast('Erro ao criar fase', 'error'); }
+}
+function showEditPhaseForm(phaseId, projectId, currency) {
+  document.getElementById(`phase-edit-form-${phaseId}`).style.display = 'flex';
+  document.getElementById(`phase-edit-form-${phaseId}`).style.flexDirection = 'column';
+}
+async function saveEditPhase(phaseId, projectId, currency) {
+  const name = document.getElementById(`eph-name-${phaseId}`).value.trim();
+  if (!name) { showToast('Nome é obrigatório', 'error'); return; }
+  const data = {
+    name,
+    description: document.getElementById(`eph-desc-${phaseId}`).value,
+    budget: document.getElementById(`eph-budget-${phaseId}`).value || 0,
+    progress: document.getElementById(`eph-progress-${phaseId}`).value || 0,
+    order_num: document.getElementById(`eph-order-${phaseId}`).value || 0
+  };
+  try {
+    const fd = new FormData();
+    fd.append('payload', JSON.stringify(data));
+    await fetch(`/api/projects/${projectId}/phases/${phaseId}`, { method: 'PUT', body: fd });
+    const proj = allProjects.find(x => x.id === projectId);
+    await loadPhases(projectId, Number(proj?.budget) || 0, proj?.currency || 'BRL');
+    showToast('Fase atualizada!', 'success');
+  } catch { showToast('Erro ao salvar fase', 'error'); }
+}
+
+async function uploadPhaseAttachments(phaseId, projectId) {
+  const input = document.getElementById(`phase-file-${phaseId}`);
+  if (!input || !input.files.length) { showToast('Selecione um arquivo', 'error'); return; }
+  const fd = new FormData();
+  for (const f of input.files) fd.append('phase_attachments', f);
+  try {
+    const res = await fetch(`/api/projects/${projectId}/phases/${phaseId}/attachments`, { method: 'POST', body: fd });
+    if (!res.ok) throw new Error();
+    const proj = allProjects.find(x => x.id === projectId);
+    await loadPhases(projectId, Number(proj?.budget) || 0, proj?.currency || 'BRL');
+    showToast('Arquivo(s) enviado(s)!', 'success');
+  } catch { showToast('Erro ao enviar arquivo', 'error'); }
+}
+
+async function removePhaseAttachment(phaseId, projectId, encodedFilename) {
+  if (!confirm('Remover este anexo?')) return;
+  try {
+    await api(`/api/projects/${projectId}/phases/${phaseId}/attachments/${encodedFilename}`, { method: 'DELETE' });
+    const proj = allProjects.find(x => x.id === projectId);
+    await loadPhases(projectId, Number(proj?.budget) || 0, proj?.currency || 'BRL');
+    showToast('Anexo removido', 'success');
+  } catch { showToast('Erro ao remover anexo', 'error'); }
+}
+async function deletePhase(phaseId, projectId) {
+  if (!confirm('Remover esta fase?')) return;
+  try {
+    await api(`/api/projects/${projectId}/phases/${phaseId}`, { method: 'DELETE' });
+    const proj = allProjects.find(x => x.id === projectId);
+    await loadPhases(projectId, Number(proj?.budget) || 0, proj?.currency || 'BRL');
+    showToast('Fase removida', 'success');
+  } catch { showToast('Erro ao remover fase', 'error'); }
+}
+
+
+const RECUSADO_OPTION_HTML = '<option value="recusado">🚫 Recusado</option>';
+
+function removeRecusadoOption() {
+  const sel = document.getElementById('statusSelect');
+  const opt = sel.querySelector('option[value="recusado"]');
+  if (opt) opt.remove();
+}
+
+function addRecusadoOption(selectedValue) {
+  const sel = document.getElementById('statusSelect');
+  if (!sel.querySelector('option[value="recusado"]')) {
+    sel.insertAdjacentHTML('beforeend', RECUSADO_OPTION_HTML);
+  }
+  sel.value = selectedValue;
+}
+
+// ── Modal ────────────────────────────────────────────────────────────────────
+function openModal(title = 'Novo Projeto') {
+  editingId = null;
+  document.getElementById('projectForm').reset();
+  document.getElementById('progressLabel').textContent = '0';
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('submitBtn').textContent = 'Salvar projeto';
+  removeRecusadoOption(); // nunca aparece ao criar
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+  editingId = null;
+}
+
+function closeModalOutside(e) {
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
+}
+
+async function editProject(id) {
+  const p = allProjects.find(x => x.id === id);
+  if (!p) return;
+  editingId = id;
+  const form = document.getElementById('projectForm');
+  form.name.value = p.name || '';
+  form.description.value = p.description || '';
+  form.status.value = p.status || 'futuro';
+  form.client.value = p.client || '';
+  form.budget.value = p.budget || '';
+  form.currency.value = p.currency || 'BRL';
+  form.tags.value = (p.tags || []).join(', ');
+  form.progress.value = p.progress || 0;
+  form.inscription_start.value = dateVal(p.inscription_start);
+  form.inscription_end.value   = dateVal(p.inscription_end);
+  form.inscription_response.value = dateVal(p.inscription_response);
+  form.project_start.value = dateVal(p.project_start);
+  form.project_end.value   = dateVal(p.project_end);
+  // adiciona opção Recusado somente na edição
+  if (p.status === 'recusado') {
+    addRecusadoOption('recusado');
+  } else {
+    removeRecusadoOption();
+    document.getElementById('statusSelect').value = p.status || 'futuro';
+  }
+  document.getElementById('progressLabel').textContent = p.progress || 0;
+  document.getElementById('modal-title').textContent = 'Editar Projeto';
+  document.getElementById('submitBtn').textContent = 'Salvar alterações';
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+async function deleteProject(id) {
+  if (!confirm('Confirma a exclusão deste projeto?')) return;
+  try {
+    await api(`/api/projects/${id}`, { method: 'DELETE' });
+    showToast('Projeto excluído', 'success');
+    closeProject();
+    load();
+  } catch {
+    showToast('Erro ao excluir', 'error');
+  }
+}
+
+// ── Form submit ───────────────────────────────────────────────────────────────
+document.getElementById('projectForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const form = e.target;
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+
+  const fd = new FormData();
+  const obj = {
+    name: form.name.value,
+    description: form.description.value,
+    status: form.status.value,
+    client: form.client.value,
+    budget: form.budget.value || null,
+    currency: form.currency.value || 'BRL',
+    progress: form.progress.value,
+    tags: form.tags.value.split(',').map(s => s.trim()).filter(Boolean),
+    inscription_start: form.inscription_start.value || null,
+    inscription_end: form.inscription_end.value || null,
+    inscription_response: form.inscription_response.value || null,
+    project_start: form.project_start.value || null,
+    project_end: form.project_end.value || null
+  };
+  fd.append('payload', JSON.stringify(obj));
+  const files = form.attachments.files;
+  for (const f of files) fd.append('attachments', f);
+
+  const url = editingId ? `/api/projects/${editingId}` : '/api/projects';
+  const method = editingId ? 'PUT' : 'POST';
+
+  try {
+    await fetch(url, { method, body: fd });
+    const savedId = editingId;
+    closeModal();
+    showToast(savedId ? 'Projeto atualizado!' : 'Projeto criado!', 'success');
+    await load();
+    // Se estava na tela de detalhe, recarrega o detalhe com dados atualizados
+    if (savedId && document.getElementById('detail-view').style.display !== 'none') {
+      openProject(savedId);
+    }
+  } catch {
+    showToast('Erro ao salvar', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = editingId ? 'Salvar alterações' : 'Salvar projeto';
+  }
+});
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = (type === 'success' ? '✅ ' : '❌ ') + msg;
+  t.className = `toast show ${type}`;
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+load();
