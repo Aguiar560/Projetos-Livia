@@ -1,3 +1,200 @@
+// ── Agenda ────────────────────────────────────────────────────────────────────
+let agendaYear  = new Date().getFullYear();
+let agendaMonth = new Date().getMonth(); // 0-indexed
+let agendaStatusFilter = '';
+let agendaDateType = 'all';
+
+const DATE_TYPES = {
+  inscription_start:    'Início inscrição',
+  inscription_end:      'Fim inscrição',
+  inscription_response: 'Resp. inscrição',
+  project_start:        'Início projeto',
+  project_end:          'Fim projeto'
+};
+
+function openAgenda() {
+  document.getElementById('grid-view').style.display   = 'none';
+  document.getElementById('detail-view').style.display = 'none';
+  document.getElementById('agenda-view').style.display = 'block';
+  document.getElementById('agenda-sidebar-btn').classList.add('active');
+  renderAgenda();
+}
+
+function closeAgenda() {
+  document.getElementById('agenda-view').style.display = 'none';
+  document.getElementById('grid-view').style.display   = 'block';
+  document.getElementById('agenda-sidebar-btn').classList.remove('active');
+}
+
+function agendaChangeMonth(delta) {
+  agendaMonth += delta;
+  if (agendaMonth > 11) { agendaMonth = 0; agendaYear++; }
+  if (agendaMonth < 0)  { agendaMonth = 11; agendaYear--; }
+  renderAgenda();
+}
+
+function agendaGoToday() {
+  agendaYear  = new Date().getFullYear();
+  agendaMonth = new Date().getMonth();
+  renderAgenda();
+}
+
+function agendaSetStatus(btn, val) {
+  document.querySelectorAll('#agenda-filters .agenda-filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  agendaStatusFilter = val;
+  renderAgenda();
+}
+
+function agendaSetDateType(btn, val) {
+  document.querySelectorAll('#agenda-date-filters .agenda-filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  agendaDateType = val;
+  renderAgenda();
+}
+
+function getAgendaEvents() {
+  const events = {}; // { 'YYYY-MM-DD': [ { project, type, label } ] }
+  const types = agendaDateType === 'all' ? Object.keys(DATE_TYPES) : [agendaDateType];
+
+  allProjects.forEach(p => {
+    if (agendaStatusFilter && p.status !== agendaStatusFilter) return;
+    types.forEach(type => {
+      const raw = p[type];
+      if (!raw) return;
+      const key = String(raw).substring(0, 10);
+      if (!events[key]) events[key] = [];
+      events[key].push({ project: p, type, label: DATE_TYPES[type] });
+    });
+  });
+  return events;
+}
+
+function agendaSlug(status) {
+  return status === 'em andamento' ? 'andamento' : status;
+}
+
+function renderAgenda() {
+  const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                  'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const DAYS   = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+  document.getElementById('agenda-month-label').textContent =
+    `${MONTHS[agendaMonth]} ${agendaYear}`;
+
+  const events  = getAgendaEvents();
+  const today   = new Date();
+  const todayKey = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+  // Primeiro dia do mês e quantos dias tem
+  const firstDay = new Date(agendaYear, agendaMonth, 1).getDay(); // 0=Dom
+  const daysInMonth = new Date(agendaYear, agendaMonth + 1, 0).getDate();
+  const daysInPrev  = new Date(agendaYear, agendaMonth, 0).getDate();
+
+  let html = DAYS.map(d => `<div class="agenda-dow">${d}</div>`).join('');
+
+  // Células do mês anterior
+  for (let i = firstDay - 1; i >= 0; i--) {
+    const day = daysInPrev - i;
+    const m   = agendaMonth === 0 ? 12 : agendaMonth;
+    const y   = agendaMonth === 0 ? agendaYear - 1 : agendaYear;
+    const key = `${y}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    html += renderAgendaCell(day, key, events, true);
+  }
+
+  // Células do mês atual
+  for (let d = 1; d <= daysInMonth; d++) {
+    const key = `${agendaYear}-${String(agendaMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    html += renderAgendaCell(d, key, events, false, key === todayKey);
+  }
+
+  // Células do mês seguinte para completar a grade
+  const total = firstDay + daysInMonth;
+  const remaining = total % 7 === 0 ? 0 : 7 - (total % 7);
+  for (let d = 1; d <= remaining; d++) {
+    const m = agendaMonth === 11 ? 1 : agendaMonth + 2;
+    const y = agendaMonth === 11 ? agendaYear + 1 : agendaYear;
+    const key = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    html += renderAgendaCell(d, key, events, true);
+  }
+
+  document.getElementById('agenda-grid').innerHTML = html;
+}
+
+function renderAgendaCell(dayNum, key, events, otherMonth, isToday = false) {
+  const evs = events[key] || [];
+  const cls = ['agenda-day',
+    otherMonth ? 'other-month' : '',
+    isToday    ? 'today'       : '',
+    evs.length ? 'has-events'  : ''
+  ].filter(Boolean).join(' ');
+
+  const MAX_VISIBLE = 2;
+  const visible = evs.slice(0, MAX_VISIBLE);
+  const extra   = evs.length - MAX_VISIBLE;
+
+  const evHtml = visible.map(ev => {
+    const slug = agendaSlug(ev.project.status);
+    return `<div class="agenda-event ev-${slug}" onclick="agendaShowPopup(event,'${key}')" title="${esc(ev.project.name)} — ${ev.label}">${esc(ev.project.name)}</div>`;
+  }).join('');
+
+  const moreHtml = extra > 0
+    ? `<div class="agenda-more" onclick="agendaShowPopup(event,'${key}')">+${extra} mais</div>`
+    : '';
+
+  return `<div class="${cls}">
+    <div class="agenda-day-num">${dayNum}</div>
+    ${evHtml}${moreHtml}
+  </div>`;
+}
+
+function agendaShowPopup(e, key) {
+  e.stopPropagation();
+  const events = getAgendaEvents();
+  const evs = events[key] || [];
+  if (!evs.length) return;
+
+  const [y, m, d] = key.split('-');
+  const dateLabel = `${d}/${m}/${y}`;
+
+  const popup  = document.getElementById('agendaPopup');
+  const overlay = document.getElementById('agendaOverlay');
+
+  popup.innerHTML = `
+    <div class="agenda-popup-title">
+      ${dateLabel}
+      <button class="agenda-popup-close" onclick="closeAgendaPopup()">✕</button>
+    </div>
+    ${evs.map(ev => {
+      const slug = agendaSlug(ev.project.status);
+      return `<div class="agenda-popup-item ev-${slug}" style="background:var(--surface2);border-left:3px solid var(--${slug})"
+        onclick="closeAgendaPopup();closeAgenda();openProject(${ev.project.id})">
+        <div class="agenda-popup-name">${esc(ev.project.name)}</div>
+        <div class="agenda-popup-type">${ev.label} · <span style="text-transform:capitalize">${ev.project.status}</span></div>
+      </div>`;
+    }).join('')}`;
+
+  // Posiciona o popup perto do clique
+  const rect = e.target.closest('.agenda-day').getBoundingClientRect();
+  const winW = window.innerWidth;
+  const winH = window.innerHeight;
+  popup.style.display = 'block';
+  const pw = popup.offsetWidth;
+  const ph = popup.offsetHeight;
+  let left = rect.left;
+  let top  = rect.bottom + 6;
+  if (left + pw > winW - 10) left = winW - pw - 10;
+  if (top + ph > winH - 10)  top  = rect.top - ph - 6;
+  popup.style.left = `${Math.max(8, left)}px`;
+  popup.style.top  = `${Math.max(8, top)}px`;
+  overlay.classList.add('open');
+}
+
+function closeAgendaPopup() {
+  document.getElementById('agendaPopup').style.display = 'none';
+  document.getElementById('agendaOverlay').classList.remove('open');
+}
+
 // ── Hamburger Menu ────────────────────────────────────────────────────────────
 function toggleSidebar() {
   const sidebar = document.querySelector('.sidebar');

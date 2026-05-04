@@ -238,7 +238,50 @@
     .toast.success{border-color:var(--realizado);color:var(--realizado)}
     .toast.error{border-color:var(--danger);color:var(--danger)}
 
-    /* Hamburguer */
+    /* ===== AGENDA ===== */
+    #agenda-view{display:none}
+    .agenda-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+    .agenda-nav{display:flex;align-items:center;gap:12px}
+    .agenda-month{font-size:1.2rem;font-weight:700;min-width:180px;text-align:center}
+    .agenda-filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .agenda-filter-btn{padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text2);font-family:inherit;font-size:.8rem;font-weight:600;cursor:pointer;transition:all .15s}
+    .agenda-filter-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+    .agenda-filter-btn.f-realizado.active{background:var(--realizado);border-color:var(--realizado)}
+    .agenda-filter-btn.f-andamento.active{background:var(--andamento);border-color:var(--andamento)}
+    .agenda-filter-btn.f-futuro.active{background:var(--futuro);border-color:var(--futuro)}
+    .agenda-filter-btn.f-recusado.active{background:var(--recusado);border-color:var(--recusado)}
+    .agenda-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+    .agenda-dow{text-align:center;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text2);padding:6px 0}
+    .agenda-day{min-height:80px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px;display:flex;flex-direction:column;gap:3px;transition:border .15s}
+    .agenda-day.today{border-color:var(--accent);background:rgba(108,99,255,.07)}
+    .agenda-day.other-month{opacity:.35}
+    .agenda-day.has-events{border-color:var(--border)}
+    .agenda-day-num{font-size:.75rem;font-weight:700;color:var(--text2);margin-bottom:2px}
+    .agenda-day.today .agenda-day-num{color:var(--accent)}
+    .agenda-event{font-size:.65rem;font-weight:600;border-radius:4px;padding:2px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;line-height:1.4}
+    .agenda-event.ev-realizado{background:rgba(0,201,167,.2);color:var(--realizado)}
+    .agenda-event.ev-andamento{background:rgba(108,99,255,.2);color:var(--andamento)}
+    .agenda-event.ev-futuro{background:rgba(255,181,71,.2);color:var(--futuro)}
+    .agenda-event.ev-recusado{background:rgba(255,92,110,.2);color:var(--recusado)}
+    .agenda-more{font-size:.6rem;color:var(--text2);padding:1px 4px;cursor:pointer}
+
+    /* Legenda de tipos de data */
+    .agenda-legend{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+    .agenda-legend-item{display:flex;align-items:center;gap:5px;font-size:.75rem;color:var(--text2)}
+    .agenda-legend-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+
+    /* Popup de dia */
+    .agenda-popup{position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);padding:16px;z-index:250;min-width:240px;max-width:300px}
+    .agenda-popup-title{font-weight:700;font-size:.9rem;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+    .agenda-popup-close{background:none;border:none;color:var(--text2);cursor:pointer;font-size:1rem}
+    .agenda-popup-item{padding:8px 10px;border-radius:8px;margin-bottom:5px;cursor:pointer;transition:opacity .15s}
+    .agenda-popup-item:hover{opacity:.8}
+    .agenda-popup-name{font-weight:600;font-size:.85rem}
+    .agenda-popup-type{font-size:.72rem;opacity:.8;margin-top:1px}
+    .agenda-overlay{display:none;position:fixed;inset:0;z-index:249}
+    .agenda-overlay.open{display:block}
+
+    /* ===== AGENDA ===== */
     .hamburger{display:none;flex-direction:column;justify-content:center;gap:5px;background:transparent;border:none;cursor:pointer;padding:6px;border-radius:8px;transition:background .15s}
     .hamburger:hover{background:var(--surface2)}
     .hamburger span{display:block;width:22px;height:2px;background:var(--text);border-radius:2px;transition:all .25s}
@@ -320,6 +363,17 @@
       .phase-meta-row{gap:10px}
       .phase-actions{flex-wrap:wrap}
 
+      /* Agenda mobile */
+      .agenda-header{flex-direction:column;align-items:flex-start}
+      .agenda-nav{width:100%;justify-content:space-between}
+      .agenda-month{font-size:1rem;min-width:0;flex:1;text-align:center}
+      .agenda-filters{gap:5px}
+      .agenda-filter-btn{padding:5px 10px;font-size:.72rem}
+      .agenda-day{min-height:54px;padding:4px}
+      .agenda-day-num{font-size:.68rem}
+      .agenda-event{font-size:.58rem;padding:1px 3px}
+      .agenda-dow{font-size:.58rem;padding:4px 0}
+
       /* Toast */
       .toast{bottom:20px;right:12px;left:12px;text-align:center}
     }
@@ -363,6 +417,10 @@
     <button class="sidebar-btn" data-filter="recusado" onclick="setFilter(this,'recusado');closeSidebar()">
       <span class="sidebar-dot dot-recusado"></span> Recusados <span class="sidebar-count" id="cnt-recusado">0</span>
     </button>
+    <div class="sidebar-label" style="margin-top:12px">Visualização</div>
+    <button class="sidebar-btn" id="agenda-sidebar-btn" onclick="openAgenda();closeSidebar()">
+      📅 Agenda
+    </button>
   </aside>
 
   <!-- MAIN -->
@@ -388,6 +446,47 @@
 
     <!-- DETAIL VIEW -->
     <div id="detail-view"></div>
+
+    <!-- AGENDA VIEW -->
+    <div id="agenda-view">
+      <button class="detail-back" onclick="closeAgenda()">← Voltar para lista</button>
+      <div class="agenda-header">
+        <div class="agenda-nav">
+          <button class="btn btn-ghost" onclick="agendaChangeMonth(-1)">&#8592;</button>
+          <div class="agenda-month" id="agenda-month-label"></div>
+          <button class="btn btn-ghost" onclick="agendaChangeMonth(1)">&#8594;</button>
+          <button class="btn btn-ghost" style="font-size:.8rem;padding:7px 12px" onclick="agendaGoToday()">Hoje</button>
+        </div>
+        <div class="agenda-filters" id="agenda-filters">
+          <span style="font-size:.75rem;color:var(--text2);font-weight:600">Status:</span>
+          <button class="agenda-filter-btn active" data-astatus="" onclick="agendaSetStatus(this,'')">Todos</button>
+          <button class="agenda-filter-btn f-andamento" data-astatus="em andamento" onclick="agendaSetStatus(this,'em andamento')">Andamento</button>
+          <button class="agenda-filter-btn f-futuro" data-astatus="futuro" onclick="agendaSetStatus(this,'futuro')">Futuros</button>
+          <button class="agenda-filter-btn f-realizado" data-astatus="realizado" onclick="agendaSetStatus(this,'realizado')">Realizados</button>
+          <button class="agenda-filter-btn f-recusado" data-astatus="recusado" onclick="agendaSetStatus(this,'recusado')">Recusados</button>
+        </div>
+      </div>
+      <div class="agenda-filters" style="margin-bottom:14px" id="agenda-date-filters">
+        <span style="font-size:.75rem;color:var(--text2);font-weight:600">Datas:</span>
+        <button class="agenda-filter-btn active" data-dtype="all" onclick="agendaSetDateType(this,'all')">Todas</button>
+        <button class="agenda-filter-btn" data-dtype="inscription_start" onclick="agendaSetDateType(this,'inscription_start')">Início inscrição</button>
+        <button class="agenda-filter-btn" data-dtype="inscription_end" onclick="agendaSetDateType(this,'inscription_end')">Fim inscrição</button>
+        <button class="agenda-filter-btn" data-dtype="inscription_response" onclick="agendaSetDateType(this,'inscription_response')">Resp. inscrição</button>
+        <button class="agenda-filter-btn" data-dtype="project_start" onclick="agendaSetDateType(this,'project_start')">Início projeto</button>
+        <button class="agenda-filter-btn" data-dtype="project_end" onclick="agendaSetDateType(this,'project_end')">Fim projeto</button>
+      </div>
+      <div class="agenda-legend">
+        <div class="agenda-legend-item"><div class="agenda-legend-dot" style="background:var(--andamento)"></div>Em andamento</div>
+        <div class="agenda-legend-item"><div class="agenda-legend-dot" style="background:var(--futuro)"></div>Futuro</div>
+        <div class="agenda-legend-item"><div class="agenda-legend-dot" style="background:var(--realizado)"></div>Realizado</div>
+        <div class="agenda-legend-item"><div class="agenda-legend-dot" style="background:var(--recusado)"></div>Recusado</div>
+      </div>
+      <div class="agenda-grid" id="agenda-grid"></div>
+    </div>
+
+    <!-- Popup agenda -->
+    <div class="agenda-overlay" id="agendaOverlay" onclick="closeAgendaPopup()"></div>
+    <div class="agenda-popup" id="agendaPopup" style="display:none"></div>
 
   </main>
 </div>
