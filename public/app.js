@@ -287,6 +287,11 @@ function setFilter(btn, filter) {
   btn.classList.add('active');
   const titles = { '': 'Todos os Projetos', 'realizado': 'Projetos Realizados', 'em andamento': 'Em Andamento', 'futuro': 'Projetos Futuros', 'recusado': 'Projetos Recusados' };
   document.getElementById('page-title').textContent = titles[filter] || 'Projetos';
+  // Se estiver em outra view, volta para o grid
+  document.getElementById('grid-view').style.display   = 'block';
+  document.getElementById('detail-view').style.display = 'none';
+  document.getElementById('agenda-view').style.display = 'none';
+  document.getElementById('agenda-sidebar-btn').classList.remove('active');
   renderList();
 }
 
