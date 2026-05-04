@@ -1,170 +1,354 @@
 require('dotenv').config();
-const path = require('path');
+const path    = require('path');
 const express = require('express');
-const multer = require('multer');
-const bodyParser = express.json();
-const app = express();
-const PORT = process.env.PORT || 3000;
+const multer  = require('multer');
+const helmet  = require('helmet');
+const rateLimit = require('express-rate-limit');
+const basicAuth = require('express-basic-auth');
+const hpp     = require('hpp');
+const app     = express();
+const PORT    = process.env.PORT || 3000;
+const db      = require('./db');
 
-const db = require('./db');
+// ── 1. Security Headers (Helmet) ─────────────────────────────────────────────
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc:  ["'self'", "'unsafe-inline'"],   // inline JS do frontend
+      styleSrc:   ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc:    ["'self'", "https://fonts.gstatic.com"],
+      imgSrc:     ["'self'", "data:"],
+      connectSrc: ["'self'"],
+      objectSrc:  ["'none'"],
+      frameSrc:   ["'none'"],
+    }
+  },
+  crossOriginEmbedderPolicy: false // evita bloquear downloads
+}));
 
-// força UTF-8 em todas as respostas JSON da API
+// ── 2. HTTP Parameter Pollution ───────────────────────────────────────────────
+app.use(hpp());
+
+// ── 3. Rate Limiting ──────────────────────────────────────────────────────────
+// Geral: 200 req / 15 min por IP
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Muitas requisições. Tente novamente mais tarde.' }
+}));
+
+// Upload: 20 req / 15 min por IP (mais restritivo)
+const uploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { error: 'Limite de uploads atingido. Aguarde 15 minutos.' }
+});
+
+// ── 4. Autenticação Básica ────────────────────────────────────────────────────
+const AUTH_USER = process.env.AUTH_USER;
+const AUTH_PASS = process.env.AUTH_PASS;
+
+if (AUTH_USER && AUTH_PASS) {
+  app.use(basicAuth({
+    users: { [AUTH_USER]: AUTH_PASS },
+    challenge: true,
+    realm: 'Projeto Livia'
+  }));
+} else {
+  console.warn('[SECURITY] AUTH_USER/AUTH_PASS não definidos — autenticação desabilitada!');
+}
+
+// ── 5. Body size limit ────────────────────────────────────────────────────────
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: false, limit: '1mb' }));
+
+// ── 6. Static files ───────────────────────────────────────────────────────────
+app.use(express.static(path.join(__dirname, 'public'), {
+  etag: true,
+  maxAge: '1h'
+}));
+
+// ── 7. UTF-8 em todas as respostas JSON ───────────────────────────────────────
 app.use('/api', (req, res, next) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   next();
 });
 
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(bodyParser);
+// ── 8. File Upload — validação de tipo e tamanho ─────────────────────────────
+const ALLOWED_MIMETYPES = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'image/jpeg','image/png','image/gif','image/webp',
+  'application/zip','application/x-rar-compressed',
+  'video/mp4','audio/mpeg','text/plain','text/csv'
+]);
 
-// file uploads — mantém nome original com timestamp para evitar colisões
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, path.join(__dirname, 'uploads/')),
   filename: (req, file, cb) => {
-    const safe = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-    cb(null, `${Date.now()}_${safe}`);
+    // Sanitiza nome — remove caracteres perigosos, mantém extensão
+    const ext  = path.extname(file.originalname).replace(/[^a-zA-Z0-9.]/g, '').substring(0, 10);
+    const base = path.basename(file.originalname, path.extname(file.originalname))
+                    .replace(/[^a-zA-Z0-9\-_]/g, '_')
+                    .substring(0, 60);
+    cb(null, `${Date.now()}_${base}${ext}`);
   }
 });
-const upload = multer({ storage });
 
-// CRUD endpoints
+const fileFilter = (req, file, cb) => {
+  if (ALLOWED_MIMETYPES.has(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error(`Tipo de arquivo não permitido: ${file.mimetype}`), false);
+  }
+};
+
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10 MB por arquivo
+    files: 10                    // máx 10 arquivos por request
+  }
+});
+
+// ── 9. Helpers de validação ───────────────────────────────────────────────────
+function sanitizeId(val) {
+  const n = parseInt(val, 10);
+  if (isNaN(n) || n <= 0) return null;
+  return n;
+}
+
+function sanitizeFilename(val) {
+  // Previne path traversal: remove ../ e caracteres perigosos
+  const clean = path.basename(String(val || '')).replace(/[^a-zA-Z0-9.\-_]/g, '_');
+  if (!clean || clean.startsWith('.')) return null;
+  return clean;
+}
+
+function safeJson(body) {
+  try {
+    return typeof body === 'string' ? JSON.parse(body) : body;
+  } catch { return {}; }
+}
+
+// ── CRUD endpoints ────────────────────────────────────────────────────────────
 app.get('/api/projects', async (req, res) => {
-  const projects = await db.getAllProjects();
-  res.json(projects);
+  try {
+    const projects = await db.getAllProjects();
+    res.json(projects);
+  } catch { res.status(500).json({ error: 'Erro interno' }); }
 });
 
 app.get('/api/projects/:id', async (req, res) => {
-  const project = await db.getProjectById(req.params.id);
-  if (!project) return res.status(404).json({ error: 'Not found' });
-  res.json(project);
+  const id = sanitizeId(req.params.id);
+  if (!id) return res.status(400).json({ error: 'ID inválido' });
+  try {
+    const project = await db.getProjectById(id);
+    if (!project) return res.status(404).json({ error: 'Not found' });
+    res.json(project);
+  } catch { res.status(500).json({ error: 'Erro interno' }); }
 });
 
-app.post('/api/projects', upload.array('attachments'), async (req, res) => {
+app.post('/api/projects', uploadLimiter, upload.array('attachments'), async (req, res) => {
   try {
-    const payload = JSON.parse(req.body.payload || JSON.stringify(req.body));
-    const files = (req.files || []).map(f => ({ originalname: f.originalname, filename: f.filename, path: f.path }));
+    const payload = safeJson(req.body.payload || req.body);
+    if (!payload.name || String(payload.name).trim().length === 0)
+      return res.status(400).json({ error: 'Nome é obrigatório' });
+    const files = (req.files || []).map(f => ({ originalname: f.originalname, filename: f.filename }));
     const id = await db.createProject(payload, files);
     res.status(201).json({ id });
   } catch (err) {
-    console.error(err);
+    console.error('[POST /api/projects]', err.message);
     res.status(400).json({ error: 'Bad request' });
   }
 });
 
-app.put('/api/projects/:id', upload.array('attachments'), async (req, res) => {
+app.put('/api/projects/:id', uploadLimiter, upload.array('attachments'), async (req, res) => {
+  const id = sanitizeId(req.params.id);
+  if (!id) return res.status(400).json({ error: 'ID inválido' });
   try {
-    const payload = JSON.parse(req.body.payload || JSON.stringify(req.body));
-    const files = (req.files || []).map(f => ({ originalname: f.originalname, filename: f.filename, path: f.path }));
-    const changed = await db.updateProject(req.params.id, payload, files);
+    const payload = safeJson(req.body.payload || req.body);
+    const files = (req.files || []).map(f => ({ originalname: f.originalname, filename: f.filename }));
+    const changed = await db.updateProject(id, payload, files);
     if (!changed) return res.status(404).json({ error: 'Not found' });
     res.json({ ok: true });
   } catch (err) {
-    console.error(err);
+    console.error('[PUT /api/projects]', err.message);
     res.status(400).json({ error: 'Bad request' });
   }
 });
 
 app.delete('/api/projects/:id', async (req, res) => {
-  const deleted = await db.deleteProject(req.params.id);
-  if (!deleted) return res.status(404).json({ error: 'Not found' });
-  res.json({ ok: true });
+  const id = sanitizeId(req.params.id);
+  if (!id) return res.status(400).json({ error: 'ID inválido' });
+  try {
+    const deleted = await db.deleteProject(id);
+    if (!deleted) return res.status(404).json({ error: 'Not found' });
+    res.json({ ok: true });
+  } catch { res.status(500).json({ error: 'Erro interno' }); }
 });
 
-// download de anexo: GET /api/projects/:id/attachments/:filename
+// ── Attachments download ──────────────────────────────────────────────────────
 app.get('/api/projects/:id/attachments/:filename', async (req, res) => {
+  const id = sanitizeId(req.params.id);
+  const filename = sanitizeFilename(req.params.filename);
+  if (!id || !filename) return res.status(400).json({ error: 'Parâmetros inválidos' });
   try {
-    const project = await db.getProjectById(req.params.id);
+    const project = await db.getProjectById(id);
     if (!project) return res.status(404).json({ error: 'Project not found' });
-    const att = (project.attachments || []).find(a => a.filename === req.params.filename);
+    const att = (project.attachments || []).find(a => a.filename === filename);
     if (!att) return res.status(404).json({ error: 'Attachment not found' });
-    const filePath = path.join(__dirname, 'uploads', att.filename);
+    const filePath = path.join(__dirname, 'uploads', filename);
+    // Garante que o arquivo está dentro da pasta uploads (anti path traversal)
+    if (!filePath.startsWith(path.join(__dirname, 'uploads')))
+      return res.status(403).json({ error: 'Acesso negado' });
     res.download(filePath, att.originalname);
   } catch (err) {
-    console.error(err);
+    console.error('[GET attachment]', err.message);
     res.status(500).json({ error: 'Download failed' });
   }
 });
 
-// ── Institutions ─────────────────────────────────────────────────────────────
+// ── Institutions ──────────────────────────────────────────────────────────────
 app.get('/api/projects/:id/institutions', async (req, res) => {
-  try { res.json(await db.getInstitutions(req.params.id)); }
-  catch(err){ res.status(500).json({ error: err.message }); }
+  const id = sanitizeId(req.params.id);
+  if (!id) return res.status(400).json({ error: 'ID inválido' });
+  try { res.json(await db.getInstitutions(id)); }
+  catch { res.status(500).json({ error: 'Erro interno' }); }
 });
+
 app.post('/api/projects/:id/institutions', async (req, res) => {
+  const id = sanitizeId(req.params.id);
+  if (!id) return res.status(400).json({ error: 'ID inválido' });
+  if (!req.body.name || String(req.body.name).trim().length === 0)
+    return res.status(400).json({ error: 'Nome é obrigatório' });
   try {
-    const id = await db.createInstitution(req.params.id, req.body);
-    res.status(201).json({ id });
+    const iid = await db.createInstitution(id, req.body);
+    res.status(201).json({ id: iid });
   } catch(err){ res.status(400).json({ error: err.message }); }
 });
+
 app.put('/api/projects/:id/institutions/:iid', async (req, res) => {
+  const id  = sanitizeId(req.params.id);
+  const iid = sanitizeId(req.params.iid);
+  if (!id || !iid) return res.status(400).json({ error: 'ID inválido' });
   try {
-    const ok = await db.updateInstitution(req.params.iid, req.body);
+    const ok = await db.updateInstitution(iid, req.body);
     ok ? res.json({ ok: true }) : res.status(404).json({ error: 'Not found' });
   } catch(err){ res.status(400).json({ error: err.message }); }
 });
+
 app.delete('/api/projects/:id/institutions/:iid', async (req, res) => {
+  const iid = sanitizeId(req.params.iid);
+  if (!iid) return res.status(400).json({ error: 'ID inválido' });
   try {
-    const ok = await db.deleteInstitution(req.params.iid);
+    const ok = await db.deleteInstitution(iid);
     ok ? res.json({ ok: true }) : res.status(404).json({ error: 'Not found' });
-  } catch(err){ res.status(500).json({ error: err.message }); }
+  } catch { res.status(500).json({ error: 'Erro interno' }); }
 });
 
-// ── Phases ───────────────────────────────────────────────────────────────────
+// ── Phases ────────────────────────────────────────────────────────────────────
 app.get('/api/projects/:id/phases', async (req, res) => {
-  try { res.json(await db.getPhases(req.params.id)); }
-  catch(err){ res.status(500).json({ error: err.message }); }
+  const id = sanitizeId(req.params.id);
+  if (!id) return res.status(400).json({ error: 'ID inválido' });
+  try { res.json(await db.getPhases(id)); }
+  catch { res.status(500).json({ error: 'Erro interno' }); }
 });
+
 app.post('/api/projects/:id/phases', async (req, res) => {
+  const id = sanitizeId(req.params.id);
+  if (!id) return res.status(400).json({ error: 'ID inválido' });
+  if (!req.body.name || String(req.body.name).trim().length === 0)
+    return res.status(400).json({ error: 'Nome é obrigatório' });
   try {
-    const id = await db.createPhase(req.params.id, req.body);
-    res.status(201).json({ id });
+    const pid = await db.createPhase(id, req.body);
+    res.status(201).json({ id: pid });
   } catch(err){ res.status(400).json({ error: err.message }); }
 });
-app.put('/api/projects/:id/phases/:pid', upload.array('phase_attachments'), async (req, res) => {
+
+app.put('/api/projects/:id/phases/:pid', uploadLimiter, upload.array('phase_attachments'), async (req, res) => {
+  const id  = sanitizeId(req.params.id);
+  const pid = sanitizeId(req.params.pid);
+  if (!id || !pid) return res.status(400).json({ error: 'ID inválido' });
   try {
-    const data = req.body.payload ? JSON.parse(req.body.payload) : req.body;
+    const data = safeJson(req.body.payload || req.body);
     const newFiles = (req.files || []).map(f => ({ originalname: f.originalname, filename: f.filename }));
-    const ok = await db.updatePhase(req.params.pid, data, newFiles);
+    const ok = await db.updatePhase(pid, data, newFiles);
     ok ? res.json({ ok: true }) : res.status(404).json({ error: 'Not found' });
   } catch(err){ res.status(400).json({ error: err.message }); }
 });
+
 app.delete('/api/projects/:id/phases/:pid', async (req, res) => {
+  const pid = sanitizeId(req.params.pid);
+  if (!pid) return res.status(400).json({ error: 'ID inválido' });
   try {
-    const ok = await db.deletePhase(req.params.pid);
+    const ok = await db.deletePhase(pid);
     ok ? res.json({ ok: true }) : res.status(404).json({ error: 'Not found' });
-  } catch(err){ res.status(500).json({ error: err.message }); }
+  } catch { res.status(500).json({ error: 'Erro interno' }); }
 });
 
-// Upload de anexo de fase
-app.post('/api/projects/:id/phases/:pid/attachments', upload.array('phase_attachments'), async (req, res) => {
+// ── Phase Attachments ─────────────────────────────────────────────────────────
+app.post('/api/projects/:id/phases/:pid/attachments', uploadLimiter, upload.array('phase_attachments'), async (req, res) => {
+  const id  = sanitizeId(req.params.id);
+  const pid = sanitizeId(req.params.pid);
+  if (!id || !pid) return res.status(400).json({ error: 'ID inválido' });
   try {
     const newFiles = (req.files || []).map(f => ({ originalname: f.originalname, filename: f.filename }));
-    if (!newFiles.length) return res.status(400).json({ error: 'No files' });
-    const phase = await db.getPhaseById(req.params.pid);
+    if (!newFiles.length) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+    const phase = await db.getPhaseById(pid);
     if (!phase) return res.status(404).json({ error: 'Phase not found' });
-    const attachments = (phase.attachments || []).concat(newFiles);
-    await db.updatePhase(req.params.pid, phase, newFiles);
+    await db.updatePhase(pid, phase, newFiles);
     res.json({ ok: true, added: newFiles.length });
-  } catch(err){ res.status(500).json({ error: err.message }); }
+  } catch(err){ res.status(500).json({ error: 'Erro interno' }); }
 });
 
-// Download de anexo de fase
 app.get('/api/projects/:id/phases/:pid/attachments/:filename', async (req, res) => {
+  const id       = sanitizeId(req.params.id);
+  const pid      = sanitizeId(req.params.pid);
+  const filename = sanitizeFilename(req.params.filename);
+  if (!id || !pid || !filename) return res.status(400).json({ error: 'Parâmetros inválidos' });
   try {
-    const phase = await db.getPhaseById(req.params.pid);
+    const phase = await db.getPhaseById(pid);
     if (!phase) return res.status(404).json({ error: 'Phase not found' });
-    const att = (phase.attachments || []).find(a => a.filename === req.params.filename);
+    const att = (phase.attachments || []).find(a => a.filename === filename);
     if (!att) return res.status(404).json({ error: 'Attachment not found' });
-    res.download(path.join(__dirname, 'uploads', att.filename), att.originalname);
-  } catch(err){ res.status(500).json({ error: err.message }); }
+    const filePath = path.join(__dirname, 'uploads', filename);
+    if (!filePath.startsWith(path.join(__dirname, 'uploads')))
+      return res.status(403).json({ error: 'Acesso negado' });
+    res.download(filePath, att.originalname);
+  } catch(err){ res.status(500).json({ error: 'Erro interno' }); }
 });
 
-// Remover anexo de fase
 app.delete('/api/projects/:id/phases/:pid/attachments/:filename', async (req, res) => {
+  const pid      = sanitizeId(req.params.pid);
+  const filename = sanitizeFilename(req.params.filename);
+  if (!pid || !filename) return res.status(400).json({ error: 'Parâmetros inválidos' });
   try {
-    const ok = await db.removePhaseAttachment(req.params.pid, req.params.filename);
+    const ok = await db.removePhaseAttachment(pid, filename);
     ok ? res.json({ ok: true }) : res.status(404).json({ error: 'Not found' });
-  } catch(err){ res.status(500).json({ error: err.message }); }
+  } catch { res.status(500).json({ error: 'Erro interno' }); }
+});
+
+// ── Error handler global ──────────────────────────────────────────────────────
+app.use((err, req, res, next) => {
+  // Erros do multer
+  if (err && err.code === 'LIMIT_FILE_SIZE')
+    return res.status(413).json({ error: 'Arquivo muito grande. Máximo: 10MB' });
+  if (err && err.code === 'LIMIT_FILE_COUNT')
+    return res.status(400).json({ error: 'Muitos arquivos. Máximo: 10 por envio' });
+  if (err && err.message && err.message.includes('não permitido'))
+    return res.status(415).json({ error: err.message });
+  console.error('[Unhandled Error]', err?.message);
+  res.status(500).json({ error: 'Erro interno do servidor' });
 });
 
 // initialize DB then start server
