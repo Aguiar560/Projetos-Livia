@@ -252,19 +252,35 @@
         width:100%;height:auto;
         position:fixed;bottom:0;left:0;right:0;top:auto;
         border-right:none;border-top:1px solid var(--border);
-        padding:6px 8px;gap:2px;
-        z-index:100;overflow-x:auto;
+        padding:4px 0;gap:0;
+        z-index:100;
         background:var(--surface);
       }
       .sidebar-label{display:none}
       .sidebar-btn{
+        flex:1;
         flex-direction:column;align-items:center;justify-content:center;
-        padding:6px 10px;font-size:.65rem;gap:3px;
-        min-width:58px;flex-shrink:0;
-        border-radius:10px;
+        padding:6px 4px;font-size:.6rem;gap:3px;
+        border-radius:0;
+        min-width:0;
+        border-bottom:2px solid transparent;
       }
-      .sidebar-count{margin-left:0;font-size:.65rem}
-      .sidebar-dot{width:8px;height:8px}
+      .sidebar-btn.active{
+        background:transparent;
+        border-bottom:2px solid var(--accent);
+        color:var(--accent);
+      }
+      .sidebar-btn .sidebar-count{display:none}
+      .sidebar-dot{width:9px;height:9px}
+
+      /* Textos curtos no mobile via CSS */
+      .sidebar-btn[data-filter=""] .sidebar-text::after{content:"Todos"}
+      .sidebar-btn[data-filter="realizado"] .sidebar-text::after{content:"Realizados"}
+      .sidebar-btn[data-filter="em andamento"] .sidebar-text::after{content:"Andamento"}
+      .sidebar-btn[data-filter="futuro"] .sidebar-text::after{content:"Futuros"}
+      .sidebar-btn[data-filter="recusado"] .sidebar-text::after{content:"Recusados"}
+      .sidebar-btn .sidebar-text{font-size:0}
+      .sidebar-btn .sidebar-text::after{font-size:.6rem}
 
       /* Main */
       .main{padding:14px 12px;padding-bottom:80px}
@@ -341,19 +357,19 @@
   <aside class="sidebar">
     <div class="sidebar-label">Filtrar por status</div>
     <button class="sidebar-btn active" data-filter="" onclick="setFilter(this,'')">
-      <span class="sidebar-dot dot-all"></span> Todos <span class="sidebar-count" id="cnt-all">0</span>
+      <span class="sidebar-dot dot-all"></span> <span class="sidebar-text">Todos</span> <span class="sidebar-count" id="cnt-all">0</span>
     </button>
     <button class="sidebar-btn" data-filter="realizado" onclick="setFilter(this,'realizado')">
-      <span class="sidebar-dot dot-realizado"></span> Realizados <span class="sidebar-count" id="cnt-realizado">0</span>
+      <span class="sidebar-dot dot-realizado"></span> <span class="sidebar-text">Realizados</span> <span class="sidebar-count" id="cnt-realizado">0</span>
     </button>
     <button class="sidebar-btn" data-filter="em andamento" onclick="setFilter(this,'em andamento')">
-      <span class="sidebar-dot dot-andamento"></span> Em andamento <span class="sidebar-count" id="cnt-andamento">0</span>
+      <span class="sidebar-dot dot-andamento"></span> <span class="sidebar-text">Em andamento</span> <span class="sidebar-count" id="cnt-andamento">0</span>
     </button>
     <button class="sidebar-btn" data-filter="futuro" onclick="setFilter(this,'futuro')">
-      <span class="sidebar-dot dot-futuro"></span> Futuros <span class="sidebar-count" id="cnt-futuro">0</span>
+      <span class="sidebar-dot dot-futuro"></span> <span class="sidebar-text">Futuros</span> <span class="sidebar-count" id="cnt-futuro">0</span>
     </button>
     <button class="sidebar-btn" data-filter="recusado" onclick="setFilter(this,'recusado')">
-      <span class="sidebar-dot dot-recusado"></span> Recusados <span class="sidebar-count" id="cnt-recusado">0</span>
+      <span class="sidebar-dot dot-recusado"></span> <span class="sidebar-text">Recusados</span> <span class="sidebar-count" id="cnt-recusado">0</span>
     </button>
   </aside>
 
