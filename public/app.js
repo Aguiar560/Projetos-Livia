@@ -145,7 +145,7 @@ function renderList() {
       </div>
       ${attCount > 0 ? `<div style="font-size:.78rem;color:var(--text2)">📎 ${attCount} anexo${attCount > 1 ? 's' : ''}</div>` : ''}
       <div class="card-actions">
-        <button class="btn btn-primary" style="flex:2" onclick="openProject(${p.id})">🔍 Ver projeto</button>
+        <button class="btn btn-primary" style="flex:2" onclick="openProject(${p.id})">Detalhes</button>
         ${(p.status === 'em andamento' || p.status === 'futuro') ? `<button class="btn btn-ghost" onclick="editProject(${p.id})">✏️</button>` : ''}
         <button class="btn btn-danger" onclick="deleteProject(${p.id})">🗑</button>
       </div>
