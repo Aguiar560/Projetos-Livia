@@ -86,6 +86,7 @@ async function init(){
       "ALTER TABLE projects ADD COLUMN project_end DATE",
       "ALTER TABLE projects ADD COLUMN inscription_response DATE",
       "ALTER TABLE projects ADD COLUMN edital_name VARCHAR(255)",
+      "ALTER TABLE projects ADD COLUMN edital_url VARCHAR(1024)",
       "ALTER TABLE project_institutions ADD COLUMN budget_value DECIMAL(12,2) DEFAULT 0"
     ];
     for (const sql of alterCols) {
@@ -150,7 +151,7 @@ module.exports = {
   async createProject(payload, files){
     const attachments = files || [];
     const [result] = await POOL.query(
-      `INSERT INTO projects (name, description, status, start_date, end_date, client, budget, currency, progress, tags, attachments, inscription_start, inscription_end, project_start, project_end, inscription_response, edital_name) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      `INSERT INTO projects (name, description, status, start_date, end_date, client, budget, currency, progress, tags, attachments, inscription_start, inscription_end, project_start, project_end, inscription_response, edital_name, edital_url) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         payload.name || '',
         payload.description || '',
@@ -168,7 +169,8 @@ module.exports = {
         payload.project_start || null,
         payload.project_end || null,
         payload.inscription_response || null,
-        payload.edital_name || null
+        payload.edital_name || null,
+        payload.edital_url || null
       ]
     );
     return result.insertId;
@@ -178,7 +180,7 @@ module.exports = {
     if(!existing) return false;
     const attachments = (existing.attachments || []).concat(files || []);
     const [result] = await POOL.query(
-      `UPDATE projects SET name=?, description=?, status=?, start_date=?, end_date=?, client=?, budget=?, currency=?, progress=?, tags=?, attachments=?, inscription_start=?, inscription_end=?, project_start=?, project_end=?, inscription_response=?, edital_name=? WHERE id=?`,
+      `UPDATE projects SET name=?, description=?, status=?, start_date=?, end_date=?, client=?, budget=?, currency=?, progress=?, tags=?, attachments=?, inscription_start=?, inscription_end=?, project_start=?, project_end=?, inscription_response=?, edital_name=?, edital_url=? WHERE id=?`,
       [
         payload.name || existing.name,
         payload.description || existing.description,
@@ -197,6 +199,7 @@ module.exports = {
         payload.project_end || existing.project_end || null,
         payload.inscription_response || existing.inscription_response || null,
         payload.edital_name !== undefined ? payload.edital_name : (existing.edital_name || null),
+        payload.edital_url !== undefined ? payload.edital_url : (existing.edital_url || null),
         id
       ]
     );

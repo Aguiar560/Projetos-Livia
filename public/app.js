@@ -433,6 +433,7 @@ async function openProject(id) {
     : '<span class="detail-empty">Nenhuma tag</span>';
 
   const editalVal = p.edital_name ? esc(p.edital_name) : '';
+  const editalUrl = p.edital_url ? esc(p.edital_url) : '';
 
   document.getElementById('detail-view').innerHTML = `
     <button class="detail-back" onclick="closeProject()">← Voltar para lista</button>
@@ -460,12 +461,20 @@ async function openProject(id) {
               <button class="btn-sm ghost" onclick="startEditEdital()">✏️</button>
             </div>
             <div id="edital-edit-form" style="display:none;margin-top:6px">
-              <div style="display:flex;gap:8px">
-                <input class="edital-input" id="edital-input" value="${editalVal}" placeholder="Nome do edital..." />
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <input class="edital-input" id="edital-input" value="${editalVal}" placeholder="Nome do edital..." style="flex:1;min-width:180px"/>
+                <input class="edital-input" id="edital-url-input" value="${editalUrl}" placeholder="URL do edital (https://...)" style="flex:2;min-width:200px"/>
                 <button class="btn-sm primary" onclick="saveEdital(${p.id})">✔ Salvar</button>
                 <button class="btn-sm ghost" onclick="cancelEditEdital()">✕</button>
               </div>
             </div>
+          </div>
+          <div class="detail-field wide" id="edital-url-display-row" style="${editalUrl ? '' : 'display:none'}">
+            <span class="detail-label">Link do Edital</span>
+            <a id="edital-url-display" href="${p.edital_url || '#'}" target="_blank" rel="noopener"
+               style="color:var(--accent);font-size:.9rem;word-break:break-all;text-decoration:none">
+              ${editalUrl || ''}
+            </a>
           </div>
         </div>
       </div>
@@ -592,16 +601,27 @@ function cancelEditEdital() {
 }
 async function saveEdital(projectId) {
   const val = document.getElementById('edital-input').value.trim();
+  const url = document.getElementById('edital-url-input').value.trim();
   try {
     const fd = new FormData();
-    fd.append('payload', JSON.stringify({ edital_name: val }));
+    fd.append('payload', JSON.stringify({ edital_name: val, edital_url: url }));
     await fetch(`/api/projects/${projectId}`, { method: 'PUT', body: fd });
     // Atualiza allProjects localmente
     const proj = allProjects.find(x => x.id === projectId);
-    if (proj) proj.edital_name = val;
+    if (proj) { proj.edital_name = val; proj.edital_url = url; }
     document.getElementById('edital-val-display').innerHTML = val
       ? esc(val)
       : '<span style="color:var(--text2);font-style:italic">Não informado</span>';
+    // Atualiza o link
+    const urlRow = document.getElementById('edital-url-display-row');
+    const urlEl  = document.getElementById('edital-url-display');
+    if (url) {
+      urlEl.href = url;
+      urlEl.textContent = url;
+      urlRow.style.display = '';
+    } else {
+      urlRow.style.display = 'none';
+    }
     cancelEditEdital();
     showToast('Edital atualizado!', 'success');
   } catch { showToast('Erro ao salvar edital', 'error'); }
