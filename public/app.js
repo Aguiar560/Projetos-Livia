@@ -985,31 +985,13 @@ function renderPhases(container, list, projectId, totalBudget, currency) {
           ${(() => {
             const total      = Number(ph.steps_total) || 0;
             const done       = Math.min(Number(ph.steps_done) || 0, total);
-            const isEqual    = ph.steps_equal !== 0; // default true
+            const isEqual    = ph.steps_equal !== 0;
             const stepVal    = Number(ph.steps_value) || 0;
             const budgetUnit = isEqual ? (total > 0 ? (Number(ph.budget) || 0) / total : 0) : stepVal;
-            const spent      = done * budgetUnit;
-            const remaining  = Math.max(0, (Number(ph.budget) || 0) - spent);
-            return `<div class="phase-steps-nums">
-              <span>Etapas: <strong>${done}/${total}</strong></span>
-              <span>Orçamento restante: <strong>${formatBudget(remaining, currency)}</strong></span>
-              <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:4px">
-                <span style="font-size:.75rem;color:var(--text2)">Realizadas:</span>
-                <input id="sdone-${ph.id}" type="number" class="phase-steps-input" min="0" value="${done}" style="width:50px"
-                  onchange="updateStepsDone(${ph.id},${projectId},this.value,document.getElementById('stotal-${ph.id}').value)" />
-                <span style="font-size:.75rem;color:var(--text2)">/ Total:</span>
-                <input id="stotal-${ph.id}" type="number" class="phase-steps-input" min="0" value="${total}" style="width:50px"
-                  onchange="updateStepsTotal(${ph.id},${projectId},document.getElementById('sdone-${ph.id}').value,this.value)" />
-                <label style="display:flex;align-items:center;gap:4px;font-size:.75rem;color:var(--text2);cursor:pointer" title="Valor igual por etapa">
-                  <input type="checkbox" ${isEqual ? 'checked' : ''} style="accent-color:var(--accent);cursor:pointer"
-                    onchange="updateStepsEqual(${ph.id},${projectId},this.checked)" />
-                  Valor igual
-                </label>
-                ${!isEqual ? `<span style="font-size:.75rem;color:var(--text2)">Valor/etapa:</span>
-                <input type="number" class="phase-steps-input" min="0" step="0.01" value="${stepVal}" style="width:80px"
-                  onchange="updateStepsValue(${ph.id},${projectId},this.value)" />` : ''}
-              </div>
-            </div>`;
+            const remaining  = Math.max(0, (Number(ph.budget) || 0) - done * budgetUnit);
+            return total > 0
+              ? `<span style="font-size:.8rem;color:var(--text2)">Etapas: <strong style="color:var(--text)">${done}/${total}</strong> &nbsp;·&nbsp; Restante: <strong style="color:var(--text)">${formatBudget(remaining, currency)}</strong></span>`
+              : `<span style="font-size:.75rem;color:var(--text2)">Sem etapas definidas — edite para configurar</span>`;
           })()}
         </div>
 
@@ -1030,6 +1012,17 @@ function renderPhases(container, list, projectId, totalBudget, currency) {
           <div class="phase-form-row">
             <div><span class="phase-form-label">Orçamento</span><input id="eph-budget-${ph.id}" type="number" min="0" step="0.01" value="${ph.budget || 0}" /></div>
             <div><span class="phase-form-label">Progresso (%)</span><input id="eph-progress-${ph.id}" type="number" min="0" max="100" value="${ph.progress || 0}" /></div>
+          </div>
+          <div class="phase-form-row">
+            <div><span class="phase-form-label">Total de etapas</span><input id="eph-stotal-${ph.id}" type="number" min="0" value="${ph.steps_total || 0}" /></div>
+            <div><span class="phase-form-label">Etapas realizadas</span><input id="eph-sdone-${ph.id}" type="number" min="0" value="${ph.steps_done || 0}" /></div>
+          </div>
+          <div class="phase-form-row" style="align-items:center">
+            <div style="display:flex;align-items:center;gap:6px">
+              <input type="checkbox" id="eph-sequal-${ph.id}" ${ph.steps_equal !== 0 ? 'checked' : ''} style="accent-color:var(--accent)" />
+              <span class="phase-form-label" style="margin:0">Valor igual por etapa</span>
+            </div>
+            <div><span class="phase-form-label">Valor por etapa (R$)</span><input id="eph-svalue-${ph.id}" type="number" min="0" step="0.01" value="${ph.steps_value || 0}" /></div>
           </div>
           <div class="phase-form-actions">
             <button class="btn-sm ghost" onclick="document.getElementById('phase-edit-form-${ph.id}').style.display='none'">Cancelar</button>
@@ -1185,11 +1178,21 @@ function showEditPhaseForm(phaseId, projectId, currency) {
 async function saveEditPhase(phaseId, projectId, currency) {
   const name = document.getElementById(`eph-name-${phaseId}`).value.trim();
   if (!name) { showToast('Nome é obrigatório', 'error'); return; }
+  const steps_total = Math.max(0, Number(document.getElementById(`eph-stotal-${phaseId}`).value) || 0);
+  const steps_done  = Math.min(steps_total, Math.max(0, Number(document.getElementById(`eph-sdone-${phaseId}`).value) || 0));
+  const steps_equal = document.getElementById(`eph-sequal-${phaseId}`).checked ? 1 : 0;
+  const steps_value = Number(document.getElementById(`eph-svalue-${phaseId}`).value) || 0;
+  // Progresso automático pelas etapas se houver total definido
+  const autoProgress = steps_total > 0 ? Math.round((steps_done / steps_total) * 100) : Number(document.getElementById(`eph-progress-${phaseId}`).value) || 0;
   const data = {
     name,
     description: document.getElementById(`eph-desc-${phaseId}`).value,
-    budget: document.getElementById(`eph-budget-${phaseId}`).value || 0,
-    progress: document.getElementById(`eph-progress-${phaseId}`).value || 0,
+    budget:       document.getElementById(`eph-budget-${phaseId}`).value || 0,
+    progress:     autoProgress,
+    steps_total,
+    steps_done,
+    steps_equal,
+    steps_value,
   };
   try {
     const fd = new FormData();
