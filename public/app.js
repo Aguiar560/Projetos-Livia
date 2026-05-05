@@ -17,6 +17,7 @@ function openAgenda() {
   document.getElementById('detail-view').style.display    = 'none';
   document.getElementById('dashboard-view').style.display = 'none';
   document.getElementById('agenda-view').style.display    = 'block';
+  document.querySelectorAll('.sidebar-btn[data-filter]').forEach(b => b.classList.remove('active'));
   document.getElementById('agenda-sidebar-btn').classList.add('active');
   document.getElementById('dashboard-sidebar-btn').classList.remove('active');
   renderAgenda();
@@ -1447,6 +1448,7 @@ function openDashboard() {
   document.getElementById('detail-view').style.display    = 'none';
   document.getElementById('agenda-view').style.display    = 'none';
   document.getElementById('dashboard-view').style.display = 'block';
+  document.querySelectorAll('.sidebar-btn[data-filter]').forEach(b => b.classList.remove('active'));
   document.getElementById('dashboard-sidebar-btn').classList.add('active');
   document.getElementById('agenda-sidebar-btn').classList.remove('active');
   renderDashboard();
