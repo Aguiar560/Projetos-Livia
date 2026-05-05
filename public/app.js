@@ -292,9 +292,14 @@ async function load() {
     const storedRole = userRole(); // lê o valor já atualizado acima
     if (badgeEl && storedUser) {
       nameEl.textContent = storedUser;
-      roleEl.textContent = storedRole === 'admin' ? '👑 Admin' : '👤 Comum';
-      roleEl.style.color = storedRole === 'admin' ? 'var(--warn)' : 'var(--text2)';
-      iconEl.textContent = storedRole === 'admin' ? '🔑' : '';
+      if (storedRole === 'admin') {
+        roleEl.textContent = 'Admin';
+        roleEl.style.color = 'var(--warn)';
+        roleEl.style.display = 'inline-block';
+      } else {
+        roleEl.style.display = 'none';
+      }
+      iconEl.textContent = '';
       badgeEl.style.display = 'flex';
     }
   } catch (e) {
