@@ -674,15 +674,15 @@ async function openProject(id) {
 
       <!-- Phases -->
       <div class="detail-section full" id="section-phases">
-        <div class="detail-section-title">Fases do Projeto</div>
+        <div class="detail-section-title">Orçamento</div>
         <div class="inline-section" id="phases-container">
           <span class="detail-empty">Carregando...</span>
         </div>
         <div style="margin-top:12px">
-          <button class="btn-sm primary" onclick="showNewPhaseForm(${p.id})">＋ Nova Fase</button>
+          <button class="btn-sm primary" onclick="showNewPhaseForm(${p.id})">＋ Novo Orçamento</button>
         </div>
         <div id="new-phase-form" style="display:none" class="phase-edit-form">
-          <div><span class="phase-form-label">Nome da fase *</span><input id="nph-name" placeholder="Ex: Elaboração do projeto" /></div>
+          <div><span class="phase-form-label">Item do Orçamento *</span><input id="nph-name" placeholder="Ex: Elaboração do projeto" /></div>
           <div><span class="phase-form-label">Descrição</span><textarea id="nph-desc" placeholder="Descreva esta fase..."></textarea></div>
           <div class="phase-form-row">
             <div><span class="phase-form-label">Orçamento (R$)</span><input id="nph-budget" type="number" min="0" step="0.01" placeholder="0,00" /></div>
@@ -690,7 +690,7 @@ async function openProject(id) {
           </div>
           <div class="phase-form-actions">
             <button class="btn-sm ghost" onclick="cancelNewPhase()">Cancelar</button>
-            <button class="btn-sm primary" onclick="saveNewPhase(${p.id})">✔ Salvar fase</button>
+            <button class="btn-sm primary" onclick="saveNewPhase(${p.id})">✔ Salvar item</button>
           </div>
         </div>
       </div>
@@ -935,7 +935,7 @@ function updateGeneralProgress(phases) {
 
 function renderPhases(container, list, projectId, totalBudget, currency) {
   if (!list.length) {
-    container.innerHTML = '<span class="detail-empty">Nenhuma fase cadastrada</span>';
+    container.innerHTML = '<span class="detail-empty">Nenhum item de orçamento cadastrado</span>';
     return;
   }
   container.innerHTML = `<div class="phase-list" id="phase-list-${projectId}">
@@ -964,7 +964,7 @@ function renderPhases(container, list, projectId, totalBudget, currency) {
       return `<div class="phase-item" id="phase-item-${ph.id}" draggable="true"
           data-phase-id="${ph.id}" data-project-id="${projectId}" data-currency="${currency}">
         <div class="phase-header">
-          <span class="phase-num" style="cursor:grab" title="Arrastar para reordenar">⠿ Fase ${idx + 1}</span>
+          <span class="phase-num" style="cursor:grab" title="Arrastar para reordenar">⠿ Item ${idx + 1}</span>
           <span class="phase-name">${esc(ph.name)}</span>
           <div style="display:flex;gap:5px">
             <button class="btn-sm ghost" onclick="showEditPhaseForm(${ph.id},${projectId},'${currency}')">✏️</button>
@@ -993,7 +993,7 @@ function renderPhases(container, list, projectId, totalBudget, currency) {
         </div>
 
         <div id="phase-edit-form-${ph.id}" style="display:none" class="phase-edit-form">
-          <div><span class="phase-form-label">Nome da fase *</span><input id="eph-name-${ph.id}" value="${esc(ph.name)}" /></div>
+          <div><span class="phase-form-label">Item do Orçamento *</span><input id="eph-name-${ph.id}" value="${esc(ph.name)}" /></div>
           <div><span class="phase-form-label">Descrição</span><textarea id="eph-desc-${ph.id}">${esc(ph.description || '')}</textarea></div>
           <div class="phase-form-row">
             <div><span class="phase-form-label">Orçamento</span><input id="eph-budget-${ph.id}" type="number" min="0" step="0.01" value="${ph.budget || 0}" /></div>
@@ -1098,7 +1098,7 @@ async function savePhasesOrder(projectId, currency) {
   // Atualiza numeração visual das fases
   items.forEach((el, idx) => {
     const numEl = el.querySelector('.phase-num');
-    if (numEl) numEl.textContent = `⠿ Fase ${idx + 1}`;
+    if (numEl) numEl.textContent = `⠿ Item ${idx + 1}`;
   });
   // Persiste nova ordem via API
   try {
@@ -1111,7 +1111,7 @@ async function savePhasesOrder(projectId, currency) {
       fd.append('payload', JSON.stringify({ order_num: u.order_num }));
       return fetch(`/api/projects/${projectId}/phases/${u.id}`, { method: 'PUT', body: fd, headers: authHeader() });
     }));
-    showToast('Ordem das fases salva!', 'success');
+    showToast('Ordem dos itens salva!', 'success');
   } catch { showToast('Erro ao salvar ordem', 'error'); }
 }
 
@@ -1126,7 +1126,7 @@ function cancelNewPhase() {
 }
 async function saveNewPhase(projectId) {
   const name = document.getElementById('nph-name').value.trim();
-  if (!name) { showToast('Nome da fase é obrigatório', 'error'); return; }
+  if (!name) { showToast('Item do orçamento é obrigatório', 'error'); return; }
   const data = {
     name,
     description: document.getElementById('nph-desc').value,
@@ -1143,8 +1143,8 @@ async function saveNewPhase(projectId) {
     cancelNewPhase();
     const proj = allProjects.find(x => x.id === projectId);
     await loadPhases(projectId, Number(proj?.budget) || 0, proj?.currency || 'BRL');
-    showToast('Fase criada!', 'success');
-  } catch { showToast('Erro ao criar fase', 'error'); }
+    showToast('Item criado!', 'success');
+  } catch { showToast('Erro ao criar item', 'error'); }
 }
 function showEditPhaseForm(phaseId, projectId, currency) {
   document.getElementById(`phase-edit-form-${phaseId}`).style.display = 'flex';
@@ -1166,8 +1166,8 @@ async function saveEditPhase(phaseId, projectId, currency) {
     await fetch(`/api/projects/${projectId}/phases/${phaseId}`, { method: 'PUT', body: fd, headers: authHeader() });
     const proj = allProjects.find(x => x.id === projectId);
     await loadPhases(projectId, Number(proj?.budget) || 0, proj?.currency || 'BRL');
-    showToast('Fase atualizada!', 'success');
-  } catch { showToast('Erro ao salvar fase', 'error'); }
+    showToast('Item atualizado!', 'success');
+  } catch { showToast('Erro ao salvar item', 'error'); }
 }
 
 async function uploadPhaseAttachments(phaseId, projectId) {
@@ -1194,13 +1194,13 @@ async function removePhaseAttachment(phaseId, projectId, encodedFilename) {
   } catch { showToast('Erro ao remover anexo', 'error'); }
 }
 async function deletePhase(phaseId, projectId) {
-  if (!await confirmDialog('Remover esta fase? Os anexos da fase também serão removidos.', '🗑️', 'Remover fase')) return;
+  if (!await confirmDialog('Remover este item do orçamento? Os anexos também serão removidos.', '🗑️', 'Remover item')) return;
   try {
     await api(`/api/projects/${projectId}/phases/${phaseId}`, { method: 'DELETE' });
     const proj = allProjects.find(x => x.id === projectId);
     await loadPhases(projectId, Number(proj?.budget) || 0, proj?.currency || 'BRL');
-    showToast('Fase removida', 'success');
-  } catch { showToast('Erro ao remover fase', 'error'); }
+    showToast('Item removido', 'success');
+  } catch { showToast('Erro ao remover item', 'error'); }
 }
 
 
