@@ -21,7 +21,8 @@
       --text2: #8b90b5;
       --realizado: #00c9a7;
       --andamento: #6c63ff;
-      --futuro: #ffb547;
+      --cadastrado: #ffb547;
+      --editais: #f97316;
       --recusado: #ff5c6e;
       --radius: 14px;
       --shadow: 0 4px 24px rgba(0,0,0,.45);
@@ -52,7 +53,8 @@
     .dot-all{background:var(--text2)}
     .dot-realizado{background:var(--realizado)}
     .dot-andamento{background:var(--andamento)}
-    .dot-futuro{background:var(--futuro)}
+    .dot-cadastrado{background:var(--cadastrado)}
+    .dot-editais{background:var(--editais)}
     .dot-recusado{background:var(--recusado)}
     .sidebar-count{margin-left:auto;background:var(--surface2);color:var(--text2);border-radius:20px;font-size:.72rem;padding:1px 8px;font-weight:600}
 
@@ -73,7 +75,8 @@
     .stat-card.c-all .stat-num{color:var(--text)}
     .stat-card.c-realizado .stat-num{color:var(--realizado)}
     .stat-card.c-andamento .stat-num{color:var(--andamento)}
-    .stat-card.c-futuro .stat-num{color:var(--futuro)}
+    .stat-card.c-cadastrado .stat-num{color:var(--cadastrado)}
+    .stat-card.c-editais .stat-num{color:var(--editais)}
     .stat-card.c-recusado .stat-num{color:var(--recusado)}
 
     /* CARDS GRID */
@@ -83,14 +86,16 @@
     .card-accent-bar{position:absolute;top:0;left:0;right:0;height:3px}
     .bar-realizado{background:var(--realizado)}
     .bar-andamento{background:var(--andamento)}
-    .bar-futuro{background:var(--futuro)}
+    .bar-cadastrado{background:var(--cadastrado)}
+    .bar-editais{background:var(--editais)}
     .bar-recusado{background:var(--recusado)}
     .card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
     .card-title{font-size:1.02rem;font-weight:700;line-height:1.3}
     .badge{display:inline-block;border-radius:20px;font-size:.72rem;font-weight:600;padding:3px 10px;white-space:nowrap}
     .badge-realizado{background:rgba(0,201,167,.15);color:var(--realizado)}
     .badge-andamento{background:rgba(108,99,255,.15);color:var(--andamento)}
-    .badge-futuro{background:rgba(255,181,71,.15);color:var(--futuro)}
+    .badge-cadastrado{background:rgba(255,181,71,.15);color:var(--cadastrado)}
+    .badge-editais{background:rgba(249,115,22,.15);color:var(--editais)}
     .badge-recusado{background:rgba(255,92,110,.15);color:var(--recusado)}
     .card-desc{font-size:.85rem;color:var(--text2);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
     .card-meta{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px}
@@ -248,7 +253,8 @@
     .agenda-filter-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
     .agenda-filter-btn.f-realizado.active{background:var(--realizado);border-color:var(--realizado)}
     .agenda-filter-btn.f-andamento.active{background:var(--andamento);border-color:var(--andamento)}
-    .agenda-filter-btn.f-futuro.active{background:var(--futuro);border-color:var(--futuro)}
+    .agenda-filter-btn.f-cadastrado.active{background:var(--cadastrado);border-color:var(--cadastrado)}
+    .agenda-filter-btn.f-editais.active{background:var(--editais);border-color:var(--editais)}
     .agenda-filter-btn.f-recusado.active{background:var(--recusado);border-color:var(--recusado)}
     .agenda-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
     .agenda-dow{text-align:center;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text2);padding:6px 0}
@@ -261,7 +267,8 @@
     .agenda-event{font-size:.65rem;font-weight:600;border-radius:4px;padding:2px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;line-height:1.4}
     .agenda-event.ev-realizado{background:rgba(0,201,167,.2);color:var(--realizado)}
     .agenda-event.ev-andamento{background:rgba(108,99,255,.2);color:var(--andamento)}
-    .agenda-event.ev-futuro{background:rgba(255,181,71,.2);color:var(--futuro)}
+    .agenda-event.ev-cadastrado{background:rgba(255,181,71,.2);color:var(--cadastrado)}
+    .agenda-event.ev-editais{background:rgba(249,115,22,.2);color:var(--editais)}
     .agenda-event.ev-recusado{background:rgba(255,92,110,.2);color:var(--recusado)}
     .agenda-more{font-size:.6rem;color:var(--text2);padding:1px 4px;cursor:pointer}
 
@@ -471,8 +478,11 @@
     <button class="sidebar-btn" data-filter="em andamento" onclick="setFilter(this,'em andamento');closeSidebar()">
       <span class="sidebar-dot dot-andamento"></span> Em andamento <span class="sidebar-count" id="cnt-andamento">0</span>
     </button>
-    <button class="sidebar-btn" data-filter="futuro" onclick="setFilter(this,'futuro');closeSidebar()">
-      <span class="sidebar-dot dot-futuro"></span> Futuros <span class="sidebar-count" id="cnt-futuro">0</span>
+    <button class="sidebar-btn" data-filter="cadastrado" onclick="setFilter(this,'cadastrado');closeSidebar()">
+      <span class="sidebar-dot dot-cadastrado"></span> Cadastrados <span class="sidebar-count" id="cnt-cadastrado">0</span>
+    </button>
+    <button class="sidebar-btn" data-filter="editais abertos" onclick="setFilter(this,'editais abertos');closeSidebar()">
+      <span class="sidebar-dot dot-editais"></span> Editais Abertos <span class="sidebar-count" id="cnt-editais">0</span>
     </button>
     <button class="sidebar-btn" data-filter="recusado" onclick="setFilter(this,'recusado');closeSidebar()">
       <span class="sidebar-dot dot-recusado"></span> Recusados <span class="sidebar-count" id="cnt-recusado">0</span>
@@ -498,7 +508,8 @@
         <div class="stat-card c-all"><div class="stat-num" id="s-all">0</div><div class="stat-label">Total</div></div>
         <div class="stat-card c-realizado"><div class="stat-num" id="s-realizado">0</div><div class="stat-label">Realizados</div></div>
         <div class="stat-card c-andamento"><div class="stat-num" id="s-andamento">0</div><div class="stat-label">Em andamento</div></div>
-        <div class="stat-card c-futuro"><div class="stat-num" id="s-futuro">0</div><div class="stat-label">Futuros</div></div>
+        <div class="stat-card c-cadastrado"><div class="stat-num" id="s-cadastrado">0</div><div class="stat-label">Cadastrados</div></div>
+        <div class="stat-card c-editais"><div class="stat-num" id="s-editais">0</div><div class="stat-label">Editais Abertos</div></div>
         <div class="stat-card c-recusado"><div class="stat-num" id="s-recusado">0</div><div class="stat-label">Recusados</div></div>
       </div>
       <div class="cards-grid" id="list"></div>
@@ -521,7 +532,8 @@
           <span style="font-size:.75rem;color:var(--text2);font-weight:600">Status:</span>
           <button class="agenda-filter-btn active" data-astatus="" onclick="agendaSetStatus(this,'')">Todos</button>
           <button class="agenda-filter-btn f-andamento" data-astatus="em andamento" onclick="agendaSetStatus(this,'em andamento')">Andamento</button>
-          <button class="agenda-filter-btn f-futuro" data-astatus="futuro" onclick="agendaSetStatus(this,'futuro')">Futuros</button>
+          <button class="agenda-filter-btn f-cadastrado" data-astatus="cadastrado" onclick="agendaSetStatus(this,'cadastrado')">Cadastrados</button>
+          <button class="agenda-filter-btn f-editais" data-astatus="editais abertos" onclick="agendaSetStatus(this,'editais abertos')">Editais Abertos</button>
           <button class="agenda-filter-btn f-realizado" data-astatus="realizado" onclick="agendaSetStatus(this,'realizado')">Realizados</button>
           <button class="agenda-filter-btn f-recusado" data-astatus="recusado" onclick="agendaSetStatus(this,'recusado')">Recusados</button>
         </div>
@@ -537,7 +549,8 @@
       </div>
       <div class="agenda-legend">
         <div class="agenda-legend-item"><div class="agenda-legend-dot" style="background:var(--andamento)"></div>Em andamento</div>
-        <div class="agenda-legend-item"><div class="agenda-legend-dot" style="background:var(--futuro)"></div>Futuro</div>
+        <div class="agenda-legend-item"><div class="agenda-legend-dot" style="background:var(--cadastrado)"></div>Cadastrado</div>
+        <div class="agenda-legend-item"><div class="agenda-legend-dot" style="background:var(--editais)"></div>Editais Abertos</div>
         <div class="agenda-legend-item"><div class="agenda-legend-dot" style="background:var(--realizado)"></div>Realizado</div>
         <div class="agenda-legend-item"><div class="agenda-legend-dot" style="background:var(--recusado)"></div>Recusado</div>
       </div>
@@ -572,7 +585,8 @@
           <div class="field">
             <label>Status</label>
             <select name="status" id="statusSelect">
-              <option value="futuro">🔶 Futuro</option>
+              <option value="cadastrado">🔶 Cadastrado</option>
+              <option value="editais abertos">🟠 Editais Abertos</option>
               <option value="em andamento">🔵 Em andamento</option>
               <option value="realizado">🟢 Realizado</option>
               <!-- opção Recusado é injetada via JS somente na edição -->
@@ -644,6 +658,6 @@
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<script src="/app.js?v=20260504b"></script>
+<script src="/app.js?v=20260504d"></script>
 </body>
 </html>

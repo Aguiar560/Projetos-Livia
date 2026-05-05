@@ -71,7 +71,9 @@ function getAgendaEvents() {
 }
 
 function agendaSlug(status) {
-  return status === 'em andamento' ? 'andamento' : status;
+  if (status === 'em andamento') return 'andamento';
+  if (status === 'editais abertos') return 'editais';
+  return status;
 }
 
 function renderAgenda() {
@@ -313,12 +315,14 @@ function updateStats() {
   document.getElementById('s-all').textContent = allProjects.length;
   document.getElementById('s-realizado').textContent = count('realizado');
   document.getElementById('s-andamento').textContent = count('em andamento');
-  document.getElementById('s-futuro').textContent = count('futuro');
+  document.getElementById('s-cadastrado').textContent = count('cadastrado');
+  document.getElementById('s-editais').textContent    = count('editais abertos');
   document.getElementById('s-recusado').textContent = count('recusado');
   document.getElementById('cnt-all').textContent = allProjects.length;
   document.getElementById('cnt-realizado').textContent = count('realizado');
   document.getElementById('cnt-andamento').textContent = count('em andamento');
-  document.getElementById('cnt-futuro').textContent = count('futuro');
+  document.getElementById('cnt-cadastrado').textContent = count('cadastrado');
+  document.getElementById('cnt-editais').textContent    = count('editais abertos');
   document.getElementById('cnt-recusado').textContent = count('recusado');
 }
 
@@ -327,7 +331,7 @@ function setFilter(btn, filter) {
   currentFilter = filter;
   document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  const titles = { '': 'Todos os Projetos', 'realizado': 'Projetos Realizados', 'em andamento': 'Em Andamento', 'futuro': 'Projetos Futuros', 'recusado': 'Projetos Recusados' };
+  const titles = { '': 'Todos os Projetos', 'realizado': 'Projetos Realizados', 'em andamento': 'Em Andamento', 'cadastrado': 'Projetos Cadastrados', 'editais abertos': 'Editais Abertos', 'recusado': 'Projetos Recusados' };
   document.getElementById('page-title').textContent = titles[filter] || 'Projetos';
   // Se estiver em outra view, volta para o grid
   document.getElementById('grid-view').style.display   = 'block';
@@ -361,9 +365,9 @@ function renderList() {
   }
 
   container.innerHTML = filtered.map(p => {
-    const slug = p.status === 'em andamento' ? 'andamento' : p.status;
+    const slug = p.status === 'em andamento' ? 'andamento' : p.status === 'editais abertos' ? 'editais' : p.status;
     const progress = Number(p.progress) || 0;
-    const progressColor = progress >= 80 ? 'var(--realizado)' : progress >= 40 ? 'var(--andamento)' : 'var(--futuro)';
+    const progressColor = progress >= 80 ? 'var(--realizado)' : progress >= 40 ? 'var(--andamento)' : 'var(--cadastrado)';
     const budget = formatBudget(p.budget, p.currency);
     const attCount = parseAttachments(p.attachments).filter(a => a && a.filename).length;
 
@@ -448,9 +452,9 @@ async function openProject(id) {
   if (!p) return;
   _detailProjectId = id;
 
-  const slug = p.status === 'em andamento' ? 'andamento' : p.status;
+  const slug = p.status === 'em andamento' ? 'andamento' : p.status === 'editais abertos' ? 'editais' : p.status;
   const progress = Number(p.progress) || 0;
-  const progressColor = progress >= 80 ? 'var(--realizado)' : progress >= 40 ? 'var(--andamento)' : 'var(--futuro)';
+  const progressColor = progress >= 80 ? 'var(--realizado)' : progress >= 40 ? 'var(--andamento)' : 'var(--cadastrado)';
   const budget = formatBudget(p.budget, p.currency);
   const tags = (Array.isArray(p.tags) ? p.tags : []).filter(Boolean);
   const atts = parseAttachments(p.attachments).filter(a => a && a.filename);
@@ -818,7 +822,7 @@ async function loadPhases(projectId, totalBudget, currency) {
 function updateGeneralProgress(phases) {
   if (!phases || !phases.length) return;
   const avg = Math.round(phases.reduce((s, ph) => s + (Number(ph.progress) || 0), 0) / phases.length);
-  const progColor = avg >= 80 ? 'var(--realizado)' : avg >= 40 ? 'var(--andamento)' : 'var(--futuro)';
+  const progColor = avg >= 80 ? 'var(--realizado)' : avg >= 40 ? 'var(--andamento)' : 'var(--cadastrado)';
   // Atualiza a barra de progresso geral na tela de detalhe
   const fill = document.querySelector('.detail-progress-fill');
   const label = document.querySelector('.detail-progress-row span[style*="font-weight:700"]');
@@ -834,7 +838,7 @@ function renderPhases(container, list, projectId, totalBudget, currency) {
   container.innerHTML = `<div class="phase-list">
     ${list.map((ph, idx) => {
       const prog = Number(ph.progress) || 0;
-      const progColor = prog >= 80 ? 'var(--realizado)' : prog >= 40 ? 'var(--andamento)' : 'var(--futuro)';
+      const progColor = prog >= 80 ? 'var(--realizado)' : prog >= 40 ? 'var(--andamento)' : 'var(--cadastrado)';
       const atts = parseAttachments(ph.attachments).filter(a => a && a.filename);
       const attHtml = atts.length
         ? `<div class="phase-att-list">${atts.map(a => `
@@ -1029,7 +1033,7 @@ async function editProject(id) {
   const form = document.getElementById('projectForm');
   form.name.value = p.name || '';
   form.description.value = p.description || '';
-  form.status.value = p.status || 'futuro';
+  form.status.value = p.status || 'cadastrado';
   form.client.value = p.client || '';
   form.budget.value = p.budget || '';
   form.currency.value = p.currency || 'BRL';
@@ -1044,7 +1048,7 @@ async function editProject(id) {
     addRecusadoOption('recusado');
   } else {
     removeRecusadoOption();
-    document.getElementById('statusSelect').value = p.status || 'futuro';
+    document.getElementById('statusSelect').value = p.status || 'cadastrado';
   }
   document.getElementById('modal-title').textContent = 'Editar Projeto';
   document.getElementById('submitBtn').textContent = 'Salvar alterações';
