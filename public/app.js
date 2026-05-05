@@ -1109,19 +1109,26 @@ function isAdmin() {
 }
 
 (function initLogin() {
-  // Verifica se já está autenticado nesta sessão
-  if (sessionStorage.getItem('auth')) {
-    document.getElementById('login-screen').classList.add('hidden');
-    return;
-  }
-  // Permite entrar com Enter nos campos
-  ['login-user', 'login-pass'].forEach(id => {
-    document.getElementById(id).addEventListener('keydown', e => {
-      if (e.key === 'Enter') doLogin();
+  try {
+    // Verifica se já está autenticado nesta sessão
+    if (sessionStorage.getItem('auth')) {
+      const ls = document.getElementById('login-screen');
+      if (ls) ls.classList.add('hidden');
+      return;
+    }
+    // Permite entrar com Enter nos campos
+    ['login-user', 'login-pass'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
     });
-  });
-  // Foca no campo usuário ao abrir
-  setTimeout(() => document.getElementById('login-user').focus(), 100);
+    // Foca no campo usuário ao abrir
+    setTimeout(() => {
+      const el = document.getElementById('login-user');
+      if (el) el.focus();
+    }, 100);
+  } catch(e) {
+    console.error('[initLogin]', e);
+  }
 })();
 
 async function doLogin() {
@@ -1182,15 +1189,23 @@ function doLogout() {
   if (badgeEl) badgeEl.style.display = 'none';
   // Limpa os dados em memória
   allProjects = [];
+  // Fecha views
+  ['detail-view', 'agenda-view'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  const gv = document.getElementById('grid-view');
+  if (gv) gv.style.display = 'block';
   // Volta para a tela de login
-  document.getElementById('login-screen').classList.remove('hidden');
-  document.getElementById('login-user').value = '';
-  document.getElementById('login-pass').value = '';
-  document.getElementById('login-error').classList.remove('show');
-  // Fecha qualquer view aberta
-  document.getElementById('detail-view').style.display = 'none';
-  document.getElementById('grid-view').style.display = 'block';
-  setTimeout(() => document.getElementById('login-user').focus(), 100);
+  const ls = document.getElementById('login-screen');
+  if (ls) ls.classList.remove('hidden');
+  const lu = document.getElementById('login-user');
+  const lp = document.getElementById('login-pass');
+  const le = document.getElementById('login-error');
+  if (lu) lu.value = '';
+  if (lp) lp.value = '';
+  if (le) le.classList.remove('show');
+  setTimeout(() => { if (lu) lu.focus(); }, 100);
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
