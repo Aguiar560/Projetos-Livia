@@ -1,48 +1,145 @@
-# Projeto Livia — App de projetos
+# 🗂️ Projeto Livia — Sistema de Gerenciamento de Projetos
 
-App simples em Node.js (Express) com SQLite para registrar projetos realizados, em andamento e futuros.
+Sistema web completo para gerenciamento de projetos, desenvolvido em **Node.js + Express** com banco de dados **MySQL** hospedado na Hostinger. Interface moderna em dark mode, com autenticação segura e acesso via navegador em qualquer dispositivo.
 
-Requisitos:
-- Node.js (>=14)
+---
 
-Banco de dados:
-- MySQL (instância local ou remota)
+## ✨ Funcionalidades
 
-Crie o banco e configure as variáveis de ambiente antes de rodar:
+- **Cadastro de projetos** com nome, descrição, cliente, orçamento, datas e status
+- **5 status disponíveis:** Cadastrado, Editais Abertos, Em andamento, Realizado, Recusado
+- **Fases por projeto** com progresso individual e orçamento por fase
+- **Anexos** por fase (PDF, Word, Excel, imagens, ZIP, etc.)
+- **Instituições parceiras** vinculadas a cada projeto
+- **URL do edital** por projeto
+- **Progresso geral** calculado automaticamente pela média das fases
+- **Agenda mensal** com visualização de datas por projeto (início/fim de inscrição, início/fim do projeto)
+- **Filtros** por status na sidebar
+- **Busca** por nome de projeto
+- **Cards** com título, descrição, cliente, orçamento, progresso e anexos — sempre alinhados
+- **Tela de login** customizada (sem popup nativo do navegador)
+- **Badge de perfil** na topbar com nome do usuário
+- **Interface responsiva** — funciona em desktop e celular
 
-```powershell
-# exemplo para PowerShell (ajuste conforme sua senha/host)
-$env:MYSQL_HOST = 'localhost';
-$env:MYSQL_PORT = '3306';
-$env:MYSQL_USER = 'root';
-$env:MYSQL_PASSWORD = 'sua_senha';
-$env:MYSQL_DATABASE = 'projeto_livia';
-```
+---
 
-Opção com Docker Compose (levanta MySQL local):
+## 🛡️ Segurança
 
-```powershell
-cd 'C:\Users\aguia\Documents\Projeto Livia'
-docker-compose up -d
-# depois use as mesmas variáveis de ambiente ou crie .env com os valores
-```
+- **Helmet** — headers HTTP de segurança + CSP configurado
+- **Rate limiting** — 200 requisições/15min geral, 20/15min em uploads
+- **HPP** — proteção contra HTTP Parameter Pollution
+- **Autenticação Basic** com middleware próprio (sem popup do navegador)
+- **Sanitização de IDs** — previne injeção de valores inválidos
+- **Sanitização de nomes de arquivo** — previne path traversal
+- **Validação de tipo MIME** nos uploads (lista branca de tipos permitidos)
+- **Limite de tamanho** — máximo 10MB por arquivo, 10 arquivos por envio
+- **0 vulnerabilidades** reportadas pelo `npm audit`
 
-Instalação (PowerShell):
+---
 
-```powershell
-cd 'C:\Users\aguia\Documents\Projeto Livia'
+## 🗄️ Banco de Dados
+
+- **MySQL** (Hostinger) — conexão via pool `mysql2/promise`
+- Tabelas criadas automaticamente no primeiro acesso (`db.init()`)
+- Campo `edital_url` adicionado via `ALTER TABLE` automático se não existir
+
+---
+
+## 🚀 Deploy
+
+O sistema está hospedado no **Railway** com deploy automático:
+
+1. Qualquer `git push` para o GitHub dispara o deploy automaticamente
+2. O Railway detecta o novo commit e atualiza o servidor em segundos
+3. Não é necessário acessar o painel do Railway para fazer atualizações
+
+**URL de produção:** `https://projetos-livia-production.up.railway.app`
+
+---
+
+## ⚙️ Variáveis de Ambiente
+
+Configure no Railway (ou no arquivo `.env` para rodar localmente):
+
+| Variável | Descrição |
+|---|---|
+| `MYSQL_HOST` | Host do banco MySQL |
+| `MYSQL_PORT` | Porta (padrão: 3306) |
+| `MYSQL_USER` | Usuário do banco |
+| `MYSQL_PASSWORD` | Senha do banco |
+| `MYSQL_DATABASE` | Nome do banco |
+| `ADMIN_USER` | Usuário de acesso ao sistema |
+| `ADMIN_PASS` | Senha de acesso ao sistema |
+| `PORT` | Porta do servidor (Railway define automaticamente) |
+
+---
+
+## 🖥️ Instalação Local
+
+**Pré-requisitos:** Node.js >= 18
+
+```bash
+# 1. Clonar o repositório
+git clone https://github.com/Aguiar560/Projetos-Livia.git
+cd Projetos-Livia
+
+# 2. Instalar dependências
 npm install
-node server.js
+
+# 3. Criar arquivo .env com as variáveis acima
+# 4. Iniciar o servidor
+npm start
 ```
 
-Acesse: http://localhost:3000
+Acesse `http://localhost:3000` no navegador.
 
-Observações:
-- Banco SQLite será criado em `database.sqlite`.
-- Arquivos enviados são salvos na pasta `uploads/`.
-- Endpoints REST: GET/POST/PUT/DELETE em `/api/projects`.
+---
 
-Observações:
-- O projeto agora usa MySQL. A tabela `projects` será criada automaticamente na primeira execução se o usuário tiver permissões.
-- Arquivos enviados são salvos na pasta `uploads/`.
-- Endpoints REST: GET/POST/PUT/DELETE em `/api/projects`.
+## 🧪 Testes
+
+```bash
+npm test                  # todos os testes
+npm run test:unit         # apenas testes unitários
+npm run test:integration  # apenas testes de integração
+npm run test:perf         # apenas testes de desempenho
+```
+
+**Cobertura:**
+- **Unitários** — `sanitizeId`, `sanitizeFilename`, `safeJson`, middleware `requireAuth`
+- **Integração** — proteção de rotas (401 sem auth), `/api/me`, CRUD de projetos
+- **Desempenho** — 20 req paralelas, 100 req sequenciais, headers de rate limit
+
+---
+
+## 🛠️ Tecnologias
+
+| Camada | Tecnologia |
+|---|---|
+| Backend | Node.js + Express 4 |
+| Banco de dados | MySQL 8 (mysql2/promise) |
+| Upload de arquivos | Multer 2.x |
+| Segurança | Helmet, HPP, express-rate-limit |
+| Frontend | HTML + CSS + JavaScript (Vanilla) |
+| Fonte | Inter (Google Fonts) |
+| Hospedagem | Railway |
+| Banco (produção) | Hostinger MySQL |
+| Testes | Jest + Supertest |
+
+---
+
+## 📁 Estrutura do Projeto
+
+```
+├── server.js          # Servidor Express + endpoints REST + segurança
+├── db.js              # Camada de acesso ao banco MySQL
+├── public/
+│   ├── index.html     # Frontend completo (HTML + CSS)
+│   └── app.js         # Lógica do frontend (Vanilla JS)
+├── uploads/           # Arquivos enviados (ignorado no git)
+├── tests/
+│   ├── unit/          # Testes unitários
+│   ├── integration/   # Testes de integração
+│   └── performance/   # Testes de desempenho
+├── .env               # Variáveis de ambiente (ignorado no git)
+└── package.json
+```
