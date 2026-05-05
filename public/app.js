@@ -1698,9 +1698,19 @@ function showSkeletons(count = 6) {
     </div>`).join('');
 }
 
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 // Aplica tema salvo (antes de qualquer render)
 applyTheme(localStorage.getItem('theme') || 'dark');
 
 // load() só é chamado após login bem-sucedido (ou se já autenticado)
 if (sessionStorage.getItem('auth')) load();
+
+// ── PWA — Registra Service Worker ────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js')
+      .then(reg => console.log('[SW] Registrado:', reg.scope))
+      .catch(err => console.warn('[SW] Falha ao registrar:', err));
+  });
+}
