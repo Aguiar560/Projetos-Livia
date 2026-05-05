@@ -1714,3 +1714,17 @@ if ('serviceWorker' in navigator) {
       .catch(err => console.warn('[SW] Falha ao registrar:', err));
   });
 }
+
+// ── PWA — Banner de instalação iOS ───────────────────────────────────────────
+(function() {
+  const isIOS     = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isSafari  = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  const isStandalone = window.navigator.standalone === true;
+  const dismissed = localStorage.getItem('pwa-dismissed');
+  if (isIOS && isSafari && !isStandalone && !dismissed) {
+    setTimeout(() => {
+      const el = document.getElementById('pwa-banner');
+      if (el) el.style.display = 'flex';
+    }, 3000); // aparece 3s após carregar
+  }
+})();

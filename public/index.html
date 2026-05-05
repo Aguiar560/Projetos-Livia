@@ -716,6 +716,15 @@
   </main>
 </div>
 
+<!-- PWA Install Banner (iOS) -->
+<div id="pwa-banner" style="display:none;position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:9999;background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:10px 14px;display:none;align-items:center;gap:10px;box-shadow:0 4px 20px rgba(0,0,0,.5);max-width:320px;width:calc(100% - 32px)">
+  <span style="font-size:1.4rem">📲</span>
+  <div style="flex:1;font-size:.78rem;color:var(--text);line-height:1.4">
+    Instale o app: toque em <strong>⬆</strong> e depois <strong>"Adicionar à Tela de Início"</strong>
+  </div>
+  <button onclick="document.getElementById('pwa-banner').style.display='none';localStorage.setItem('pwa-dismissed','1')" style="background:none;border:none;color:var(--text2);font-size:1.1rem;cursor:pointer;padding:2px 4px;line-height:1">✕</button>
+</div>
+
 <!-- CONFIRM DIALOG -->
 <div class="confirm-overlay" id="confirmOverlay">
   <div class="confirm-box">
@@ -833,6 +842,6 @@
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<script src="/app.js?v=20260505f"></script>
+<script src="/app.js?v=20260505g"></script>
 </body>
 </html>
