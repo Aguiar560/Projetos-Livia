@@ -491,7 +491,13 @@ function renderAttachments(p) {
   const items = atts.map(a => {
     const url = `/api/projects/${p.id}/attachments/${encodeURIComponent(a.filename)}`;
     const previewable = ['jpg','jpeg','png','gif','webp','pdf'].includes((a.originalname||'').split('.').pop().toLowerCase());
-    return `<div class="att-item" onclick="openPreview('${url}','${esc(a.originalname)}','${url}?dl=1')" style="cursor:pointer" title="${previewable ? 'Visualizar' : 'Baixar'} ${esc(a.originalname)}">
+    // Usa data-attributes em vez de injetar URL diretamente em onclick (previne XSS)
+    return `<div class="att-item att-clickable"
+        data-url="${esc(url)}"
+        data-name="${esc(a.originalname)}"
+        data-dl="${esc(url)}?dl=1"
+        style="cursor:pointer"
+        title="${previewable ? 'Visualizar' : 'Baixar'} ${esc(a.originalname)}">
       <span class="att-icon">${fileIcon(a.originalname)}</span>
       <span class="att-name">${esc(a.originalname)}</span>
       <span class="att-dl">${previewable ? '🔍' : '⬇'}</span>
@@ -499,6 +505,16 @@ function renderAttachments(p) {
   }).join('');
   return `<div class="att-list">${items}</div>`;
 }
+
+// Delegação de eventos para att-clickable (seguro contra XSS)
+document.addEventListener('click', e => {
+  const el = e.target.closest('.att-clickable');
+  if (!el) return;
+  const url  = el.dataset.url;
+  const name = el.dataset.name;
+  const dl   = el.dataset.dl;
+  if (url && name) openPreview(url, name, dl || url);
+});
 
 // ── Detail view ───────────────────────────────────────────────────────────────
 let _detailProjectId = null;
@@ -524,7 +540,11 @@ async function openProject(id) {
     ? atts.map(a => {
         const url = `/api/projects/${p.id}/attachments/${encodeURIComponent(a.filename)}`;
         const previewable = ['jpg','jpeg','png','gif','webp','pdf'].includes((a.originalname||'').split('.').pop().toLowerCase());
-        return `<div class="att-item" onclick="openPreview('${url}','${esc(a.originalname)}','${url}?dl=1')" style="cursor:pointer">
+        return `<div class="att-item att-clickable"
+            data-url="${esc(url)}"
+            data-name="${esc(a.originalname)}"
+            data-dl="${esc(url)}?dl=1"
+            style="cursor:pointer">
           <span class="att-icon">${fileIcon(a.originalname)}</span>
           <span class="att-name">${esc(a.originalname)}</span>
           <span class="att-dl">${previewable ? '🔍 Visualizar' : '⬇ Baixar'}</span>
@@ -923,8 +943,12 @@ function renderPhases(container, list, projectId, totalBudget, currency) {
               <span>${fileIcon(a.originalname)}</span>
               <span class="phase-att-name" title="${esc(a.originalname)}">${esc(a.originalname)}</span>
               <div class="phase-att-actions">
-                ${previewable ? `<button class="btn-sm ghost" onclick="openPreview('${attUrl}','${esc(a.originalname)}','${attUrl}')" title="Visualizar">🔍</button>` : ''}
-                <a href="${attUrl}" download="${esc(a.originalname)}" class="btn-sm ghost" title="Baixar">⬇</a>
+                ${previewable ? `<button class="btn-sm ghost att-clickable"
+                    data-url="${esc(attUrl)}"
+                    data-name="${esc(a.originalname)}"
+                    data-dl="${esc(attUrl)}?dl=1"
+                    title="Visualizar">🔍</button>` : ''}
+                <a href="${esc(attUrl)}?dl=1" class="btn-sm ghost" title="Baixar">⬇</a>
                 <button class="btn-sm danger" onclick="removePhaseAttachment(${ph.id},${projectId},'${encodeURIComponent(a.filename)}')" title="Remover">✕</button>
               </div>
             </div>`;

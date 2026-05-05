@@ -28,16 +28,18 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc:     ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
-      scriptSrcAttr: ["'unsafe-inline'"],
       styleSrc:   ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc:    ["'self'", "https://fonts.gstatic.com"],
       imgSrc:     ["'self'", "data:", "blob:"],
       connectSrc: ["'self'"],
       objectSrc:  ["'none'"],
       frameSrc:   ["'self'"],
+      baseUri:    ["'self'"],
+      formAction: ["'self'"],
     }
   },
-  crossOriginEmbedderPolicy: false
+  crossOriginEmbedderPolicy: false,
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
 }));
 
 // ── 2. HTTP Parameter Pollution ───────────────────────────────────────────────
@@ -91,10 +93,20 @@ function requireAuth(req, res, next) {
   let ok = false;
   let resolvedUser = null;
   try {
-    const [user, pass] = Buffer.from(base64, 'base64').toString().split(':');
-    if (USER_MAP[user] && USER_MAP[user] === pass) {
-      ok = true;
-      resolvedUser = user;
+    const decoded = Buffer.from(base64, 'base64').toString();
+    const colonIdx = decoded.indexOf(':');
+    if (colonIdx < 1) throw new Error('invalid');
+    const user = decoded.substring(0, colonIdx);
+    const pass = decoded.substring(colonIdx + 1);
+    const storedPass = USER_MAP[user];
+    if (storedPass) {
+      // timing-safe comparison para evitar timing attacks
+      const a = Buffer.from(pass.padEnd(storedPass.length));
+      const b = Buffer.from(storedPass);
+      if (a.length === b.length && require('crypto').timingSafeEqual(a, b)) {
+        ok = true;
+        resolvedUser = user;
+      }
     }
   } catch { ok = false; }
   if (!ok) return res.status(401).json({ error: 'Não autorizado' });
@@ -113,14 +125,25 @@ app.use('/api', requireAuth);
 
 // Log de acesso após auth (para registrar usuário resolvido)
 app.use('/api', (req, res, next) => {
-  const ip   = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '-';
+  // x-forwarded-for pode ter múltiplos IPs (proxies encadeados) — pega só o primeiro real
+  const forwarded = req.headers['x-forwarded-for'];
+  const ip = forwarded
+    ? forwarded.split(',')[0].trim().replace(/[^0-9a-fA-F.:]/g, '')
+    : (req.socket.remoteAddress || '-');
   const user = req.authUser || 'anon';
   const line = `[${new Date().toISOString()}] ${ip} ${user} ${req.method} ${req.originalUrl}`;
   writeLog(line);
   next();
 });
 
-// ── 5. Body size limit ────────────────────────────────────────────────────────
+// ── JSON Content-Type apenas para rotas que retornam JSON ──────────────────────
+app.use('/api', (req, res, next) => {
+  // Não sobrescreve rotas de arquivos binários (attachments)
+  if (!req.path.includes('/attachments/')) {
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  }
+  next();
+});
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: false, limit: '1mb' }));
 
@@ -129,12 +152,6 @@ app.use(express.static(path.join(__dirname, 'public'), {
   etag: true,
   maxAge: '1h'
 }));
-
-// ── 7. UTF-8 em todas as respostas JSON ───────────────────────────────────────
-app.use('/api', (req, res, next) => {
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  next();
-});
 
 // ── 8. File Upload — validação de tipo e tamanho ─────────────────────────────
 const ALLOWED_MIMETYPES = new Set([
@@ -379,7 +396,7 @@ app.put('/api/projects/:id/phases/:pid', requireAdmin, uploadLimiter, upload.arr
   if (!id || !pid) return res.status(400).json({ error: 'ID inválido' });
   try {
     const data = safeJson(req.body.payload || req.body);
-    const newFiles = (req.files || []).map(f => ({ originalname: f.originalname, filename: f.filename }));
+    const newFiles = await persistFiles(req.files);
     const ok = await db.updatePhase(pid, data, newFiles);
     ok ? res.json({ ok: true }) : res.status(404).json({ error: 'Not found' });
   } catch(err){ res.status(400).json({ error: err.message }); }
@@ -487,11 +504,14 @@ app.get('/api/backup', requireAdmin, async (req, res) => {
       const desc    = (p.description || '').replace(/'/g, "''");
       const client  = (p.client  || '').replace(/'/g, "''");
       const status  = (p.status  || '').replace(/'/g, "''");
-      const tags    = JSON.stringify(Array.isArray(p.tags) ? p.tags : []).replace(/'/g, "''");
-      lines.push(`INSERT INTO projects (id, name, description, status, client, budget, currency, progress, inscription_start, inscription_end, inscription_response, project_start, project_end, tags, created_at) VALUES (`);
-      lines.push(`  ${p.id}, '${name}', '${desc}', '${status}', '${client}', ${p.budget||0}, '${p.currency||'BRL'}', ${p.progress||0},`);
-      lines.push(`  ${p.inscription_start ? `'${p.inscription_start}'` : 'NULL'}, ${p.inscription_end ? `'${p.inscription_end}'` : 'NULL'}, ${p.inscription_response ? `'${p.inscription_response}'` : 'NULL'},`);
-      lines.push(`  ${p.project_start ? `'${p.project_start}'` : 'NULL'}, ${p.project_end ? `'${p.project_end}'` : 'NULL'}, '${tags}', NOW()`);
+      const budget  = isFinite(Number(p.budget)) ? Number(p.budget) : 0;
+      const progress = isFinite(Number(p.progress)) ? Math.max(0, Math.min(100, Number(p.progress))) : 0;
+      const currency = (p.currency || 'BRL').replace(/[^A-Z]/g, '').substring(0,3);
+      const d = v => v ? `'${String(v).replace(/[^0-9\-]/g,'')}'` : 'NULL';
+      lines.push(`INSERT INTO projects (id, name, description, status, client, budget, currency, progress, inscription_start, inscription_end, inscription_response, project_start, project_end, created_at) VALUES (`);
+      lines.push(`  ${p.id}, '${name}', '${desc}', '${status}', '${client}', ${budget}, '${currency}', ${progress},`);
+      lines.push(`  ${d(p.inscription_start)}, ${d(p.inscription_end)}, ${d(p.inscription_response)},`);
+      lines.push(`  ${d(p.project_start)}, ${d(p.project_end)}, NOW()`);
       lines.push(`);`);
     }
 
