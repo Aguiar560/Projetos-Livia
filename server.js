@@ -11,6 +11,7 @@ const app     = express();
 const PORT    = process.env.PORT || 3000;
 const db      = require('./db');
 const PKG_VERSION = require('./package.json').version;
+const { checkAndNotify } = require('./notifier');
 
 // ── 0. Access Log ─────────────────────────────────────────────────────────────
 const LOG_DIR  = path.join(__dirname, 'logs');
@@ -512,6 +513,15 @@ module.exports = { app, db };
 if (require.main === module) {
   db.init().then(()=>{
     app.listen(PORT, '0.0.0.0', () => console.log(`Server running on http://localhost:${PORT}`));
+
+    // ── Notificações diárias ────────────────────────────────────────────────
+    // Executa imediatamente ao subir e depois a cada 24h
+    const NOTIFY_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 horas
+    checkAndNotify().catch(err => console.error('[NOTIFIER]', err.message));
+    setInterval(() => {
+      checkAndNotify().catch(err => console.error('[NOTIFIER]', err.message));
+    }, NOTIFY_INTERVAL_MS);
+
   }).catch(err=>{
     console.error('Failed to initialize DB', err);
     process.exit(1);

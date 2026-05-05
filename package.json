@@ -5,7 +5,16 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "notify": "node notifier.js",
+    "test": "jest --runInBand --forceExit",
+    "test:unit": "jest tests/unit --runInBand --forceExit",
+    "test:integration": "jest tests/integration --runInBand --forceExit",
+    "test:perf": "jest tests/performance --runInBand --forceExit"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testTimeout": 15000
   },
   "keywords": [],
   "author": "",
@@ -18,6 +27,11 @@
     "helmet": "^8.1.0",
     "hpp": "^0.2.3",
     "multer": "^2.1.1",
-    "mysql2": "^3.3.0"
+    "mysql2": "^3.3.0",
+    "nodemailer": "^8.0.7"
+  },
+  "devDependencies": {
+    "jest": "^30.3.0",
+    "supertest": "^7.2.2"
   }
 }
