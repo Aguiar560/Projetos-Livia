@@ -675,7 +675,7 @@ async function openProject(id) {
       <!-- Phases -->
       <div class="detail-section full" id="section-phases">
         <div class="detail-section-title" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="togglePhases()">
-          <span>Orçamento</span><span id="phases-toggle-icon" style="font-size:.8rem">▼</span>
+          <span id="phases-section-title">Orçamento</span><span id="phases-toggle-icon" style="font-size:.8rem">▼</span>
         </div>
         <div id="phases-container-wrap" style="display:none">
         <div class="inline-section" id="phases-container">
@@ -946,7 +946,19 @@ function updateGeneralProgress(phases) {
   if (label) label.textContent = `${avg}%`, label.style.color = progColor;
 }
 
+function updatePhasesBudgetTitle(list, totalBudget, currency) {
+  const titleEl = document.getElementById('phases-section-title');
+  if (!titleEl) return;
+  const cur = currency || 'BRL';
+  const used = list.reduce((s, ph) => s + (Number(ph.budget) || 0), 0);
+  const total = Number(totalBudget) || 0;
+  const color = used > total && total > 0 ? 'var(--danger)' : 'inherit';
+  const totalStr = total > 0 ? ` / ${formatBudget(total, cur)}` : '';
+  titleEl.innerHTML = `Orçamento <span style="font-size:.85rem;font-weight:400;color:${color}">(${formatBudget(used, cur)}${totalStr})</span>`;
+}
+
 function renderPhases(container, list, projectId, totalBudget, currency) {
+  updatePhasesBudgetTitle(list, totalBudget, currency);
   if (!list.length) {
     container.innerHTML = '<span class="detail-empty">Nenhum item de orçamento cadastrado</span>';
     return;
