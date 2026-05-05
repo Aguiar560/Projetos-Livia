@@ -90,7 +90,8 @@
     .bar-editais{background:var(--editais)}
     .bar-recusado{background:var(--recusado)}
     .card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
-    .card-title{font-size:1.02rem;font-weight:700;line-height:1.3}
+    .card-title{font-size:1.02rem;font-weight:700;line-height:1.3;text-transform:lowercase}
+    .card-title::first-letter{text-transform:uppercase}
     .badge{display:inline-block;border-radius:20px;font-size:.72rem;font-weight:600;padding:3px 10px;white-space:nowrap}
     .badge-realizado{background:rgba(0,201,167,.15);color:var(--realizado)}
     .badge-andamento{background:rgba(108,99,255,.15);color:var(--andamento)}
@@ -108,7 +109,7 @@
     .progress-bar-fill{height:100%;border-radius:99px;transition:width .4s}
     .tags-row{display:flex;flex-wrap:wrap;gap:5px}
     .tag{background:var(--surface2);color:var(--text2);border-radius:6px;font-size:.72rem;padding:3px 8px;font-weight:500}
-    .card-actions{display:flex;gap:8px;margin-top:2px}
+    .card-actions{display:flex;gap:8px;margin-top:auto;padding-top:6px}
     .card-actions .btn{flex:1;justify-content:center;padding:8px 14px;font-size:.82rem}
     .empty{text-align:center;padding:80px 20px;color:var(--text2)}
     .empty svg{opacity:.3;margin-bottom:16px}
@@ -658,6 +659,6 @@
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<script src="/app.js?v=20260504d"></script>
+<script src="/app.js?v=20260504f"></script>
 </body>
 </html>

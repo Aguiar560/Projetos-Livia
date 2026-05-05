@@ -1043,13 +1043,9 @@ async function editProject(id) {
   form.inscription_response.value = dateVal(p.inscription_response);
   form.project_start.value = dateVal(p.project_start);
   form.project_end.value   = dateVal(p.project_end);
-  // adiciona opção Recusado somente na edição
-  if (p.status === 'recusado') {
-    addRecusadoOption('recusado');
-  } else {
-    removeRecusadoOption();
-    document.getElementById('statusSelect').value = p.status || 'cadastrado';
-  }
+  // adiciona opção Recusado sempre na edição
+  addRecusadoOption(p.status);
+  document.getElementById('statusSelect').value = p.status || 'cadastrado';
   document.getElementById('modal-title').textContent = 'Editar Projeto';
   document.getElementById('submitBtn').textContent = 'Salvar alterações';
   document.getElementById('modalOverlay').classList.add('open');
