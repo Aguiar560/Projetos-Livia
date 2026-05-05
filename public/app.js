@@ -982,22 +982,24 @@ function renderPhases(container, list, projectId, totalBudget, currency) {
         </div>
 
         <div class="phase-steps-section">
-          <div class="phase-steps-title">
-            <span>📋 Etapas ${ph.steps && ph.steps.length ? `(${ph.steps.filter(s=>s.done).length}/${ph.steps.length})` : ''}</span>
-          </div>
-          <div class="phase-steps-list" id="steps-list-${ph.id}">
-            ${(ph.steps || []).map((s, si) => `
-              <div class="phase-step-item">
-                <input type="checkbox" id="step-${ph.id}-${si}" ${s.done ? 'checked' : ''}
-                  onchange="toggleStep(${ph.id},${projectId},${si},this.checked)" />
-                <label for="step-${ph.id}-${si}" class="${s.done ? 'done' : ''}">${esc(s.label)}</label>
-                <button class="btn-sm danger" style="padding:1px 5px;font-size:.7rem" onclick="removeStep(${ph.id},${projectId},${si})">✕</button>
-              </div>`).join('')}
-          </div>
-          <div class="phase-steps-add">
-            <input id="step-input-${ph.id}" placeholder="Nova etapa..." onkeydown="if(event.key==='Enter')addStep(${ph.id},${projectId})" />
-            <button class="btn-sm primary" onclick="addStep(${ph.id},${projectId})">＋</button>
-          </div>
+          ${(() => {
+            const total    = Number(ph.steps_total) || 0;
+            const done     = Math.min(Number(ph.steps_done) || 0, total);
+            const budgetUnit = total > 0 ? (Number(ph.budget) || 0) / total : 0;
+            const remaining  = (total - done) * budgetUnit;
+            return `<div class="phase-steps-nums">
+              <span>Etapas: <strong>${done}/${total}</strong></span>
+              <span>Orçamento restante: <strong>${formatBudget(remaining, currency)}</strong></span>
+              <div style="display:flex;gap:5px;align-items:center">
+                <span style="font-size:.75rem;color:var(--text2)">Realizadas:</span>
+                <input type="number" class="phase-steps-input" min="0" max="${total}" value="${done}"
+                  onchange="updateStepsDone(${ph.id},${projectId},this.value,${total})" style="width:50px" />
+                <span style="font-size:.75rem;color:var(--text2)">/ Total:</span>
+                <input type="number" class="phase-steps-input" min="0" value="${total}"
+                  onchange="updateStepsTotal(${ph.id},${projectId},${done},this.value)" style="width:50px" />
+              </div>
+            </div>`;
+          })()}
         </div>
 
         <div class="phase-att-section">
@@ -1192,52 +1194,23 @@ async function saveEditPhase(phaseId, projectId, currency) {
   } catch(e) { showToast('Erro ao salvar item: ' + e.message, 'error'); }
 }
 
-// ── Etapas de Fase ────────────────────────────────────────────────────────────
-async function _saveSteps(phaseId, projectId, steps) {
+// ── Etapas de Fase (numérico simples) ────────────────────────────────────────
+async function _saveStepsNum(phaseId, projectId, total, done) {
+  total = Math.max(0, Number(total) || 0);
+  done  = Math.min(Math.max(0, Number(done) || 0), total);
+  const progress = total > 0 ? Math.round((done / total) * 100) : 0;
   const fd = new FormData();
-  fd.append('payload', JSON.stringify({ steps }));
+  fd.append('payload', JSON.stringify({ steps_total: total, steps_done: done, progress }));
   const res = await fetch(`/api/projects/${projectId}/phases/${phaseId}`, { method: 'PUT', body: fd, headers: authHeader() });
-  if (!res.ok) throw new Error('Erro ao salvar etapas');
+  if (!res.ok) { showToast('Erro ao salvar etapas', 'error'); return; }
   const proj = allProjects.find(x => x.id === projectId);
   await loadPhases(projectId, Number(proj?.budget) || 0, proj?.currency || 'BRL');
 }
-function _getSteps(phaseId) {
-  // Lê etapas atuais do DOM (checkboxes)
-  const list = document.getElementById(`steps-list-${phaseId}`);
-  if (!list) return [];
-  return [...list.querySelectorAll('.phase-step-item')].map((el, i) => ({
-    label: el.querySelector('label').textContent,
-    done: el.querySelector('input[type=checkbox]').checked
-  }));
+async function updateStepsDone(phaseId, projectId, done, total) {
+  await _saveStepsNum(phaseId, projectId, total, done);
 }
-async function addStep(phaseId, projectId) {
-  const input = document.getElementById(`step-input-${phaseId}`);
-  const label = input ? input.value.trim() : '';
-  if (!label) return;
-  const steps = _getSteps(phaseId);
-  steps.push({ label, done: false });
-  try { await _saveSteps(phaseId, projectId, steps); }
-  catch { showToast('Erro ao adicionar etapa', 'error'); }
-}
-async function removeStep(phaseId, projectId, idx) {
-  const steps = _getSteps(phaseId);
-  steps.splice(idx, 1);
-  try { await _saveSteps(phaseId, projectId, steps); }
-  catch { showToast('Erro ao remover etapa', 'error'); }
-}
-async function toggleStep(phaseId, projectId, idx, done) {
-  const steps = _getSteps(phaseId);
-  if (steps[idx]) steps[idx].done = done;
-  // Calcula progresso automaticamente pelas etapas
-  const auto = steps.length ? Math.round((steps.filter(s => s.done).length / steps.length) * 100) : null;
-  const payload = { steps };
-  if (auto !== null) payload.progress = auto;
-  const fd = new FormData();
-  fd.append('payload', JSON.stringify(payload));
-  const res = await fetch(`/api/projects/${projectId}/phases/${phaseId}`, { method: 'PUT', body: fd, headers: authHeader() });
-  if (!res.ok) { showToast('Erro ao salvar etapa', 'error'); return; }
-  const proj = allProjects.find(x => x.id === projectId);
-  await loadPhases(projectId, Number(proj?.budget) || 0, proj?.currency || 'BRL');
+async function updateStepsTotal(phaseId, projectId, done, total) {
+  await _saveStepsNum(phaseId, projectId, total, done);
 }
 
 async function uploadPhaseAttachments(phaseId, projectId) {
