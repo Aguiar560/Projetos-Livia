@@ -246,6 +246,17 @@
     .phase-upload-row{display:flex;align-items:center;gap:7px}
     .phase-upload-row input[type=file]{flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text2);border-radius:7px;padding:4px 8px;font-family:inherit;font-size:.78rem;cursor:pointer}
     .phase-upload-row input[type=file]::-webkit-file-upload-button{background:var(--surface2);border:none;color:var(--text2);cursor:pointer}
+    /* Etapas */
+    .phase-steps-section{margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
+    .phase-steps-title{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text2);margin-bottom:6px;display:flex;align-items:center;justify-content:space-between}
+    .phase-steps-list{display:flex;flex-direction:column;gap:3px;margin-bottom:6px}
+    .phase-step-item{display:flex;align-items:center;gap:7px;font-size:.8rem;color:var(--text)}
+    .phase-step-item input[type=checkbox]{accent-color:var(--accent);width:14px;height:14px;cursor:pointer;flex-shrink:0}
+    .phase-step-item label{flex:1;cursor:pointer}
+    .phase-step-item label.done{text-decoration:line-through;color:var(--text2)}
+    .phase-steps-add{display:flex;gap:5px;margin-top:4px}
+    .phase-steps-add input{flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-size:.78rem;font-family:inherit}
+    .phase-steps-add input:focus{outline:none;border-color:var(--accent)}
 
     /* Edital name inline */
     .edital-edit{display:flex;align-items:center;gap:8px}
@@ -866,6 +877,6 @@
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<script src="/app.js?v=20260505s"></script>
+<script src="/app.js?v=20260505t"></script>
 </body>
 </html>

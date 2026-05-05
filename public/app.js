@@ -981,6 +981,25 @@ function renderPhases(container, list, projectId, totalBudget, currency) {
           </div>
         </div>
 
+        <div class="phase-steps-section">
+          <div class="phase-steps-title">
+            <span>📋 Etapas ${ph.steps && ph.steps.length ? `(${ph.steps.filter(s=>s.done).length}/${ph.steps.length})` : ''}</span>
+          </div>
+          <div class="phase-steps-list" id="steps-list-${ph.id}">
+            ${(ph.steps || []).map((s, si) => `
+              <div class="phase-step-item">
+                <input type="checkbox" id="step-${ph.id}-${si}" ${s.done ? 'checked' : ''}
+                  onchange="toggleStep(${ph.id},${projectId},${si},this.checked)" />
+                <label for="step-${ph.id}-${si}" class="${s.done ? 'done' : ''}">${esc(s.label)}</label>
+                <button class="btn-sm danger" style="padding:1px 5px;font-size:.7rem" onclick="removeStep(${ph.id},${projectId},${si})">✕</button>
+              </div>`).join('')}
+          </div>
+          <div class="phase-steps-add">
+            <input id="step-input-${ph.id}" placeholder="Nova etapa..." onkeydown="if(event.key==='Enter')addStep(${ph.id},${projectId})" />
+            <button class="btn-sm primary" onclick="addStep(${ph.id},${projectId})">＋</button>
+          </div>
+        </div>
+
         <div class="phase-att-section">
           <div class="phase-att-title">
             <span>📎 Anexos ${atts.length ? `(${atts.length})` : ''}</span>
@@ -1171,6 +1190,54 @@ async function saveEditPhase(phaseId, projectId, currency) {
     await loadPhases(projectId, Number(proj?.budget) || 0, proj?.currency || 'BRL');
     showToast('Item atualizado!', 'success');
   } catch(e) { showToast('Erro ao salvar item: ' + e.message, 'error'); }
+}
+
+// ── Etapas de Fase ────────────────────────────────────────────────────────────
+async function _saveSteps(phaseId, projectId, steps) {
+  const fd = new FormData();
+  fd.append('payload', JSON.stringify({ steps }));
+  const res = await fetch(`/api/projects/${projectId}/phases/${phaseId}`, { method: 'PUT', body: fd, headers: authHeader() });
+  if (!res.ok) throw new Error('Erro ao salvar etapas');
+  const proj = allProjects.find(x => x.id === projectId);
+  await loadPhases(projectId, Number(proj?.budget) || 0, proj?.currency || 'BRL');
+}
+function _getSteps(phaseId) {
+  // Lê etapas atuais do DOM (checkboxes)
+  const list = document.getElementById(`steps-list-${phaseId}`);
+  if (!list) return [];
+  return [...list.querySelectorAll('.phase-step-item')].map((el, i) => ({
+    label: el.querySelector('label').textContent,
+    done: el.querySelector('input[type=checkbox]').checked
+  }));
+}
+async function addStep(phaseId, projectId) {
+  const input = document.getElementById(`step-input-${phaseId}`);
+  const label = input ? input.value.trim() : '';
+  if (!label) return;
+  const steps = _getSteps(phaseId);
+  steps.push({ label, done: false });
+  try { await _saveSteps(phaseId, projectId, steps); }
+  catch { showToast('Erro ao adicionar etapa', 'error'); }
+}
+async function removeStep(phaseId, projectId, idx) {
+  const steps = _getSteps(phaseId);
+  steps.splice(idx, 1);
+  try { await _saveSteps(phaseId, projectId, steps); }
+  catch { showToast('Erro ao remover etapa', 'error'); }
+}
+async function toggleStep(phaseId, projectId, idx, done) {
+  const steps = _getSteps(phaseId);
+  if (steps[idx]) steps[idx].done = done;
+  // Calcula progresso automaticamente pelas etapas
+  const auto = steps.length ? Math.round((steps.filter(s => s.done).length / steps.length) * 100) : null;
+  const payload = { steps };
+  if (auto !== null) payload.progress = auto;
+  const fd = new FormData();
+  fd.append('payload', JSON.stringify(payload));
+  const res = await fetch(`/api/projects/${projectId}/phases/${phaseId}`, { method: 'PUT', body: fd, headers: authHeader() });
+  if (!res.ok) { showToast('Erro ao salvar etapa', 'error'); return; }
+  const proj = allProjects.find(x => x.id === projectId);
+  await loadPhases(projectId, Number(proj?.budget) || 0, proj?.currency || 'BRL');
 }
 
 async function uploadPhaseAttachments(phaseId, projectId) {

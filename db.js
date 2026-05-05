@@ -121,6 +121,8 @@ async function init(){
     `);
     // add attachments column to existing phases tables
     try { await conn.query('ALTER TABLE project_phases ADD COLUMN attachments TEXT'); } catch(e) {}
+    // add steps column to existing phases tables
+    try { await conn.query('ALTER TABLE project_phases ADD COLUMN steps TEXT'); } catch(e) {}
 
     // comments table
     await conn.query(`
@@ -265,17 +267,18 @@ module.exports = {
   // ── Phases ──────────────────────────────────────────────────────────────────
   async getPhases(projectId){
     const [rows] = await POOL.query('SELECT * FROM project_phases WHERE project_id = ? ORDER BY order_num, id', [projectId]);
-    return rows.map(r => ({ ...r, attachments: parseJsonField(r.attachments) }));
+    return rows.map(r => ({ ...r, attachments: parseJsonField(r.attachments), steps: parseJsonField(r.steps) }));
   },
   async getPhaseById(id){
     const [rows] = await POOL.query('SELECT * FROM project_phases WHERE id = ? LIMIT 1', [id]);
     if (!rows.length) return null;
-    return { ...rows[0], attachments: parseJsonField(rows[0].attachments) };
+    const r = rows[0];
+    return { ...r, attachments: parseJsonField(r.attachments), steps: parseJsonField(r.steps) };
   },
   async createPhase(projectId, data){
     const [r] = await POOL.query(
-      'INSERT INTO project_phases (project_id, name, description, budget, progress, order_num, attachments) VALUES (?,?,?,?,?,?,?)',
-      [projectId, data.name || '', data.description || '', Number(data.budget) || 0, Number(data.progress) || 0, Number(data.order_num) || 0, JSON.stringify([])]
+      'INSERT INTO project_phases (project_id, name, description, budget, progress, order_num, attachments, steps) VALUES (?,?,?,?,?,?,?,?)',
+      [projectId, data.name || '', data.description || '', Number(data.budget) || 0, Number(data.progress) || 0, Number(data.order_num) || 0, JSON.stringify([]), JSON.stringify([])]
     );
     return r.insertId;
   },
@@ -289,9 +292,10 @@ module.exports = {
     const budget      = data.budget      !== undefined ? Number(data.budget)   : existing.budget;
     const progress    = data.progress    !== undefined ? Number(data.progress) : existing.progress;
     const order_num   = data.order_num   !== undefined ? Number(data.order_num): existing.order_num;
+    const steps       = data.steps       !== undefined ? data.steps            : (existing.steps || []);
     const [r] = await POOL.query(
-      'UPDATE project_phases SET name=?, description=?, budget=?, progress=?, order_num=?, attachments=? WHERE id=?',
-      [name, description || '', budget || 0, progress || 0, order_num || 0, JSON.stringify(attachments), id]
+      'UPDATE project_phases SET name=?, description=?, budget=?, progress=?, order_num=?, attachments=?, steps=? WHERE id=?',
+      [name, description || '', budget || 0, progress || 0, order_num || 0, JSON.stringify(attachments), JSON.stringify(steps), id]
     );
     return r.affectedRows > 0;
   },
