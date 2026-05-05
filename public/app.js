@@ -1478,7 +1478,7 @@ function renderDashboard() {
     <div class="dash-kpi"><div class="dash-kpi-num" style="color:var(--realizado)">${allProjects.filter(p=>p.status==='realizado').length}</div><div class="dash-kpi-label">Realizados</div></div>
     <div class="dash-kpi"><div class="dash-kpi-num" style="color:var(--andamento)">${allProjects.filter(p=>p.status==='em andamento').length}</div><div class="dash-kpi-label">Em Andamento</div></div>
     <div class="dash-kpi"><div class="dash-kpi-num" style="color:var(--accent)">${avgProgress}%</div><div class="dash-kpi-label">Progresso Médio</div></div>
-    <div class="dash-kpi"><div class="dash-kpi-num" style="color:var(--realizado);font-size:1.2rem">${formatBudget(totalBudget,'BRL')}</div><div class="dash-kpi-label">Orçamento Total</div></div>`;
+    <div class="dash-kpi"><div class="dash-kpi-num" style="color:var(--realizado);font-size:0.9rem;white-space:nowrap">${formatBudget(totalBudget,'BRL')}</div><div class="dash-kpi-label">Orçamento Total</div></div>`;
 
   Chart.defaults.color = textColor;
   Chart.defaults.borderColor = gridColor;
