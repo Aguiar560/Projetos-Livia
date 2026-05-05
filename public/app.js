@@ -13,10 +13,12 @@ const DATE_TYPES = {
 };
 
 function openAgenda() {
-  document.getElementById('grid-view').style.display   = 'none';
-  document.getElementById('detail-view').style.display = 'none';
-  document.getElementById('agenda-view').style.display = 'block';
+  document.getElementById('grid-view').style.display      = 'none';
+  document.getElementById('detail-view').style.display    = 'none';
+  document.getElementById('dashboard-view').style.display = 'none';
+  document.getElementById('agenda-view').style.display    = 'block';
   document.getElementById('agenda-sidebar-btn').classList.add('active');
+  document.getElementById('dashboard-sidebar-btn').classList.remove('active');
   renderAgenda();
 }
 
@@ -1439,11 +1441,12 @@ function toggleHistory() {
 let _dashCharts = {};
 
 function openDashboard() {
-  document.getElementById('grid-view').style.display   = 'none';
-  document.getElementById('detail-view').style.display = 'none';
-  document.getElementById('agenda-view').style.display = 'none';
+  document.getElementById('grid-view').style.display      = 'none';
+  document.getElementById('detail-view').style.display    = 'none';
+  document.getElementById('agenda-view').style.display    = 'none';
   document.getElementById('dashboard-view').style.display = 'block';
   document.getElementById('dashboard-sidebar-btn').classList.add('active');
+  document.getElementById('agenda-sidebar-btn').classList.remove('active');
   renderDashboard();
 }
 
