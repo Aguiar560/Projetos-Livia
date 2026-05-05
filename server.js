@@ -59,14 +59,27 @@ if (ADMIN_USER && ADMIN_PASS) {
   USER_MAP[ADMIN_USER] = ADMIN_PASS;
   ROLE_MAP[ADMIN_USER] = 'admin';
   console.log(`[AUTH] Usuário admin carregado: ${ADMIN_USER}`);
-  app.use(basicAuth({
-    users: USER_MAP,
-    challenge: true,
-    realm: 'Projeto Livia'
-  }));
 } else {
   console.warn('[SECURITY] ADMIN_USER/ADMIN_PASS não definidos — autenticação desabilitada!');
 }
+
+// Middleware de auth SEM challenge — não abre popup do browser, retorna 401 silencioso
+// Aplicado apenas nas rotas /api para que o frontend customizado faça o login
+function requireAuth(req, res, next) {
+  if (!ADMIN_USER) return next(); // auth desabilitada
+  const authHeader = req.headers['authorization'] || '';
+  const base64 = authHeader.replace(/^Basic\s+/i, '');
+  let ok = false;
+  try {
+    const [user, pass] = Buffer.from(base64, 'base64').toString().split(':');
+    ok = user === ADMIN_USER && pass === ADMIN_PASS;
+  } catch { ok = false; }
+  if (!ok) return res.status(401).json({ error: 'Não autorizado' });
+  req.authUser = ADMIN_USER;
+  next();
+}
+
+app.use('/api', requireAuth);
 
 // ── 5. Body size limit ────────────────────────────────────────────────────────
 app.use(express.json({ limit: '1mb' }));
@@ -150,8 +163,8 @@ function safeJson(body) {
 // ── CRUD endpoints ────────────────────────────────────────────────────────────
 // Quem sou eu? — retorna usuário e role para o frontend
 app.get('/api/me', (req, res) => {
-  const user = req.auth?.user || null;
-  const role = ROLE_MAP[user] || 'comum';
+  const user = req.authUser || null;
+  const role = user === ADMIN_USER ? 'admin' : 'comum';
   res.json({ user, role });
 });
 
