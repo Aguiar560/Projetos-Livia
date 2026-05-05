@@ -15,7 +15,8 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc:  ["'self'", "'unsafe-inline'"],   // inline JS do frontend
+      scriptSrc:     ["'self'", "'unsafe-inline'"],
+      scriptSrcAttr: ["'unsafe-inline'"],   // permite onclick="..." nos elementos HTML
       styleSrc:   ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc:    ["'self'", "https://fonts.gstatic.com"],
       imgSrc:     ["'self'", "data:"],
@@ -24,7 +25,7 @@ app.use(helmet({
       frameSrc:   ["'none'"],
     }
   },
-  crossOriginEmbedderPolicy: false // evita bloquear downloads
+  crossOriginEmbedderPolicy: false
 }));
 
 // ── 2. HTTP Parameter Pollution ───────────────────────────────────────────────
