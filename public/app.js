@@ -1527,47 +1527,6 @@ function renderDashboard() {
   }
 }
 
-// ── Export CSV ────────────────────────────────────────────────────────────────
-function exportCSV() {
-  const q = (document.getElementById('searchInput')?.value || '').toLowerCase();
-  const list = allProjects.filter(p => {
-    const matchFilter = !currentFilter || p.status === currentFilter;
-    const matchSearch = !q || (p.name||'').toLowerCase().includes(q) || (p.client||'').toLowerCase().includes(q);
-    return matchFilter && matchSearch;
-  });
-
-  if (!list.length) { showToast('Nenhum projeto para exportar', 'error'); return; }
-
-  const headers = ['ID','Nome','Status','Cliente','Orçamento','Moeda','Progresso (%)','Início Inscrição','Fim Inscrição','Resp. Inscrição','Início Projeto','Fim Projeto','Tags'];
-  const rows = list.map(p => [
-    p.id,
-    `"${(p.name||'').replace(/"/g,'""')}"`,
-    p.status,
-    `"${(p.client||'').replace(/"/g,'""')}"`,
-    p.budget || 0,
-    p.currency || 'BRL',
-    p.progress || 0,
-    dateVal(p.inscription_start) || '',
-    dateVal(p.inscription_end) || '',
-    dateVal(p.inscription_response) || '',
-    dateVal(p.project_start) || '',
-    dateVal(p.project_end) || '',
-    `"${(Array.isArray(p.tags) ? p.tags.join(', ') : '').replace(/"/g,'""')}"`
-  ]);
-
-  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
-  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url;
-  a.download = `projetos_${new Date().toISOString().substring(0,10)}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  showToast(`${list.length} projetos exportados!`, 'success');
-}
-
 // ── Viewer restrictions ───────────────────────────────────────────────────────
 function applyViewerRestrictions() {
   const role = sessionStorage.getItem('role') || 'viewer';
