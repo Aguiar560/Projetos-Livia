@@ -995,19 +995,19 @@ function renderPhases(container, list, projectId, totalBudget, currency) {
               <span>Orçamento restante: <strong>${formatBudget(remaining, currency)}</strong></span>
               <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:4px">
                 <span style="font-size:.75rem;color:var(--text2)">Realizadas:</span>
-                <input type="number" class="phase-steps-input" min="0" max="${total}" value="${done}"
-                  onchange="updateStepsDone(${ph.id},${projectId},this.value,${total})" style="width:50px" />
+                <input id="sdone-${ph.id}" type="number" class="phase-steps-input" min="0" value="${done}" style="width:50px"
+                  onchange="updateStepsDone(${ph.id},${projectId},this.value,document.getElementById('stotal-${ph.id}').value)" />
                 <span style="font-size:.75rem;color:var(--text2)">/ Total:</span>
-                <input type="number" class="phase-steps-input" min="0" value="${total}"
-                  onchange="updateStepsTotal(${ph.id},${projectId},${done},this.value)" style="width:50px" />
+                <input id="stotal-${ph.id}" type="number" class="phase-steps-input" min="0" value="${total}" style="width:50px"
+                  onchange="updateStepsTotal(${ph.id},${projectId},document.getElementById('sdone-${ph.id}').value,this.value)" />
                 <label style="display:flex;align-items:center;gap:4px;font-size:.75rem;color:var(--text2);cursor:pointer" title="Valor igual por etapa">
                   <input type="checkbox" ${isEqual ? 'checked' : ''} style="accent-color:var(--accent);cursor:pointer"
                     onchange="updateStepsEqual(${ph.id},${projectId},this.checked)" />
                   Valor igual
                 </label>
                 ${!isEqual ? `<span style="font-size:.75rem;color:var(--text2)">Valor/etapa:</span>
-                <input type="number" class="phase-steps-input" min="0" step="0.01" value="${stepVal}"
-                  onchange="updateStepsValue(${ph.id},${projectId},this.value)" style="width:80px" />` : ''}
+                <input type="number" class="phase-steps-input" min="0" step="0.01" value="${stepVal}" style="width:80px"
+                  onchange="updateStepsValue(${ph.id},${projectId},this.value)" />` : ''}
               </div>
             </div>`;
           })()}
