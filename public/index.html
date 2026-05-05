@@ -90,9 +90,9 @@
     .bar-editais{background:var(--editais)}
     .bar-recusado{background:var(--recusado)}
     .card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
-    .card-title{font-size:1.02rem;font-weight:700;line-height:1.35;text-transform:lowercase;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;height:4.05em;flex-shrink:0}
+    .card-title{font-size:1.02rem;font-weight:700;line-height:1.35;text-transform:lowercase;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;height:4.05em;flex-shrink:1;min-width:0}
     .card-title::first-letter{text-transform:uppercase}
-    .badge{display:inline-block;border-radius:20px;font-size:.72rem;font-weight:600;padding:3px 10px;white-space:nowrap}
+    .badge{display:inline-block;border-radius:20px;font-size:.72rem;font-weight:600;padding:3px 10px;white-space:nowrap;flex-shrink:0}
     .badge-realizado{background:rgba(0,201,167,.15);color:var(--realizado)}
     .badge-andamento{background:rgba(108,99,255,.15);color:var(--andamento)}
     .badge-cadastrado{background:rgba(255,181,71,.15);color:var(--cadastrado)}
@@ -660,6 +660,6 @@
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<script src="/app.js?v=20260504h"></script>
+<script src="/app.js?v=20260504i"></script>
 </body>
 </html>
