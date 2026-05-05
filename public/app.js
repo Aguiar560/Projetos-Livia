@@ -950,7 +950,8 @@ function updatePhasesBudgetTitle(list, totalBudget, currency) {
   const titleEl = document.getElementById('phases-section-title');
   if (!titleEl) return;
   const cur = currency || 'BRL';
-  const used = list.reduce((s, ph) => s + (Number(ph.budget) || 0), 0);
+  // "utilizado" = soma de (orçamento × progresso%) de cada item
+  const used = list.reduce((s, ph) => s + (Number(ph.budget) || 0) * (Number(ph.progress) || 0) / 100, 0);
   const total = Number(totalBudget) || 0;
   const color = used > total && total > 0 ? 'var(--danger)' : 'inherit';
   const totalStr = total > 0 ? ` / ${formatBudget(total, cur)}` : '';
