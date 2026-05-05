@@ -55,7 +55,7 @@
     .btn-danger:hover{background:#d94455}
 
     /* LAYOUT */
-    .layout{display:flex;flex:1}
+    .layout{display:flex;flex:1;min-width:0;overflow-x:hidden}
     .sidebar{width:220px;background:var(--surface);border-right:1px solid var(--border);padding:28px 16px;display:flex;flex-direction:column;gap:6px;position:sticky;top:60px;height:calc(100vh - 60px);overflow-y:auto}
     .sidebar-label{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--text2);padding:8px 12px 4px}
     .sidebar-btn{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;border:none;background:transparent;color:var(--text2);font-family:inherit;font-size:.88rem;cursor:pointer;transition:all .15s;text-align:left;width:100%}
@@ -92,7 +92,7 @@
     .stat-card.c-recusado .stat-num{color:var(--recusado)}
 
     /* CARDS GRID */
-    .cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px}
+    .cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr));gap:18px}
     .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px;display:flex;flex-direction:column;gap:14px;transition:transform .18s,box-shadow .18s;position:relative;overflow:hidden}
     .card:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
     .card-accent-bar{position:absolute;top:0;left:0;right:0;height:3px}
@@ -168,8 +168,8 @@
     .detail-title-area{display:flex;flex-direction:column;gap:10px}
     .detail-title{font-size:1.75rem;font-weight:700;line-height:1.2}
     .detail-top-actions{display:flex;align-items:center;gap:10px;flex-shrink:0}
-    .detail-body{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-    .detail-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px}
+    .detail-body{display:grid;grid-template-columns:1fr 1fr;gap:16px;min-width:0}
+    .detail-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px;min-width:0;overflow:hidden}
     .detail-section.full{grid-column:1/-1}
     .detail-section-title{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--accent);margin-bottom:14px;display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--border);padding-bottom:10px}
     .detail-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px 24px}
@@ -244,8 +244,8 @@
     .phase-att-item:hover{border-color:var(--accent)}
     .phase-att-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
     .phase-att-actions{display:flex;gap:4px;flex-shrink:0}
-    .phase-upload-row{display:flex;align-items:center;gap:7px}
-    .phase-upload-row input[type=file]{flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text2);border-radius:7px;padding:4px 8px;font-family:inherit;font-size:.78rem;cursor:pointer}
+    .phase-upload-row{display:flex;align-items:center;gap:7px;min-width:0}
+    .phase-upload-row input[type=file]{flex:1;min-width:0;width:0;background:var(--surface2);border:1px solid var(--border);color:var(--text2);border-radius:7px;padding:4px 8px;font-family:inherit;font-size:.78rem;cursor:pointer;overflow:hidden}
     .phase-upload-row input[type=file]::-webkit-file-upload-button{background:var(--surface2);border:none;color:var(--text2);cursor:pointer}
     /* Etapas */
     .phase-steps-section{margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
@@ -880,6 +880,6 @@
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<script src="/app.js?v=20260506g"></script>
+<script src="/app.js?v=20260506h"></script>
 </body>
 </html>
