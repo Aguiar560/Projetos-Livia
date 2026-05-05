@@ -272,16 +272,24 @@ async function api(url, options = {}) {
 
 async function load() {
   try {
+    // Sempre busca a role atualizada do servidor a cada load
+    try {
+      const me = await api('/api/me');
+      if (me.role) sessionStorage.setItem('role', me.role);
+      if (me.user) sessionStorage.setItem('user', me.user);
+    } catch(e) { /* ignora se falhar, usa o que tem no sessionStorage */ }
+
     allProjects = await api('/api/projects');
     updateStats();
     renderList();
+
     // Exibe badge do usuário na topbar
-    const badgeEl   = document.getElementById('user-badge');
-    const nameEl    = document.getElementById('user-badge-name');
-    const roleEl    = document.getElementById('user-badge-role');
-    const iconEl    = document.getElementById('user-badge-icon');
+    const badgeEl = document.getElementById('user-badge');
+    const nameEl  = document.getElementById('user-badge-name');
+    const roleEl  = document.getElementById('user-badge-role');
+    const iconEl  = document.getElementById('user-badge-icon');
     const storedUser = sessionStorage.getItem('user');
-    const storedRole = userRole();
+    const storedRole = userRole(); // lê o valor já atualizado acima
     if (badgeEl && storedUser) {
       nameEl.textContent = storedUser;
       roleEl.textContent = storedRole === 'admin' ? '👑 Admin' : '👤 Comum';
