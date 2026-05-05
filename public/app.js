@@ -390,7 +390,7 @@ function renderList() {
       ${attCount > 0 ? `<div style="font-size:.78rem;color:var(--text2)">📎 ${attCount} anexo${attCount > 1 ? 's' : ''}</div>` : ''}
       <div class="card-actions">
         <button class="btn btn-primary" style="flex:2" onclick="openProject(${p.id})">Detalhes</button>
-        ${(isAdmin() || p.status === 'em andamento' || p.status === 'futuro') ? `<button class="btn btn-ghost" onclick="editProject(${p.id})">✏️</button>` : ''}
+        <button class="btn btn-ghost" onclick="editProject(${p.id})">✏️</button>
         ${isAdmin() ? `<button class="btn btn-danger" onclick="deleteProject(${p.id})">🗑</button>` : ''}
       </div>
     </div>`;
@@ -486,7 +486,7 @@ async function openProject(id) {
         <span class="badge badge-${slug}">${esc(p.status)}</span>
       </div>
       <div class="detail-top-actions">
-        ${(isAdmin() || p.status === 'em andamento' || p.status === 'futuro') ? `<button class="btn btn-ghost" onclick="editProject(${p.id})">✏️ Editar</button>` : ''}
+        <button class="btn btn-ghost" onclick="editProject(${p.id})">✏️ Editar</button>
         ${isAdmin() ? `<button class="btn btn-danger" onclick="deleteProject(${p.id})">🗑 Excluir</button>` : ''}
       </div>
     </div>
@@ -987,7 +987,7 @@ async function deletePhase(phaseId, projectId) {
 }
 
 
-const RECUSADO_OPTION_HTML = '<option value="recusado">Recusado</option>';
+const RECUSADO_OPTION_HTML = '<option value="recusado">🚫 Recusado</option>';
 
 function removeRecusadoOption() {
   const sel = document.getElementById('statusSelect');
