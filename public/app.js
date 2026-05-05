@@ -1148,44 +1148,6 @@ function initPhaseDragDrop(projectId, currency) {
       item.classList.remove('drag-over');
     });
   });
-
-  // ── Swipe para deletar no mobile ──────────────────────────────────────────
-  if (!isAdmin()) return; // só admin pode deletar
-  list.querySelectorAll('.phase-item').forEach(item => {
-    let touchStartX = 0;
-    let touchDeltaX = 0;
-    const SWIPE_THRESHOLD = 80;
-
-    item.addEventListener('touchstart', e => {
-      touchStartX = e.touches[0].clientX;
-      touchDeltaX = 0;
-      item.style.transition = 'none';
-    }, { passive: true });
-
-    item.addEventListener('touchmove', e => {
-      touchDeltaX = e.touches[0].clientX - touchStartX;
-      if (touchDeltaX < 0) {
-        // Só arrasta para esquerda
-        item.style.transform = `translateX(${Math.max(touchDeltaX, -SWIPE_THRESHOLD - 20)}px)`;
-        // Mostra fundo vermelho
-        item.style.setProperty('--swipe-bg', 'rgba(255,92,110,.15)');
-      }
-    }, { passive: true });
-
-    item.addEventListener('touchend', () => {
-      item.style.transition = 'transform .25s ease';
-      if (touchDeltaX < -SWIPE_THRESHOLD) {
-        // Disparou o swipe — confirma exclusão
-        item.style.transform = `translateX(-100%)`;
-        const phaseId   = Number(item.dataset.phaseId);
-        const projectId = Number(item.dataset.projectId);
-        const currency  = item.dataset.currency;
-        setTimeout(() => deletePhase(phaseId, projectId, currency), 200);
-      } else {
-        item.style.transform = 'translateX(0)';
-      }
-    });
-  });
 }
 
 async function savePhasesOrder(projectId, currency) {
