@@ -137,7 +137,8 @@ function renderAgendaCell(dayNum, key, events, otherMonth, isToday = false) {
 
   const evHtml = visible.map(ev => {
     const slug = agendaSlug(ev.project.status);
-    return `<div class="agenda-event ev-${slug}" onclick="agendaShowPopup(event,'${key}')" title="${esc(ev.project.name)} — ${ev.label}">${esc(ev.project.name)}</div>`;
+    const nameShort = esc(ev.project.name).substring(0, 18);
+    return `<div class="agenda-event ev-${slug}" onclick="agendaShowPopup(event,'${key}')" title="${esc(ev.project.name)} — ${ev.label}">${nameShort}</div>`;
   }).join('');
 
   const moreHtml = extra > 0

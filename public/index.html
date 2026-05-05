@@ -258,15 +258,15 @@
     .agenda-filter-btn.f-cadastrado.active{background:var(--cadastrado);border-color:var(--cadastrado)}
     .agenda-filter-btn.f-editais.active{background:var(--editais);border-color:var(--editais)}
     .agenda-filter-btn.f-recusado.active{background:var(--recusado);border-color:var(--recusado)}
-    .agenda-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+    .agenda-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;width:100%;table-layout:fixed}
     .agenda-dow{text-align:center;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text2);padding:6px 0}
-    .agenda-day{min-height:80px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px;display:flex;flex-direction:column;gap:3px;transition:border .15s}
+    .agenda-day{min-height:80px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px;display:flex;flex-direction:column;gap:3px;transition:border .15s;overflow:hidden;min-width:0}
     .agenda-day.today{border-color:var(--accent);background:rgba(108,99,255,.07)}
     .agenda-day.other-month{opacity:.35}
     .agenda-day.has-events{border-color:var(--border)}
-    .agenda-day-num{font-size:.75rem;font-weight:700;color:var(--text2);margin-bottom:2px}
+    .agenda-day-num{font-size:.75rem;font-weight:700;color:var(--text2);margin-bottom:2px;flex-shrink:0}
     .agenda-day.today .agenda-day-num{color:var(--accent)}
-    .agenda-event{font-size:.65rem;font-weight:600;border-radius:4px;padding:2px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;line-height:1.4}
+    .agenda-event{font-size:.65rem;font-weight:600;border-radius:4px;padding:2px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;line-height:1.4;display:block;max-width:100%}
     .agenda-event.ev-realizado{background:rgba(0,201,167,.2);color:var(--realizado)}
     .agenda-event.ev-andamento{background:rgba(108,99,255,.2);color:var(--andamento)}
     .agenda-event.ev-cadastrado{background:rgba(255,181,71,.2);color:var(--cadastrado)}
@@ -379,10 +379,10 @@
       .agenda-month{font-size:1rem;min-width:0;flex:1;text-align:center}
       .agenda-filters{gap:5px}
       .agenda-filter-btn{padding:5px 10px;font-size:.72rem}
-      .agenda-day{min-height:54px;padding:4px}
-      .agenda-day-num{font-size:.68rem}
-      .agenda-event{font-size:.58rem;padding:1px 3px}
-      .agenda-dow{font-size:.58rem;padding:4px 0}
+      .agenda-day{min-height:48px;padding:3px;overflow:hidden}
+      .agenda-day-num{font-size:.62rem}
+      .agenda-event{font-size:.5rem;padding:1px 2px;max-width:100%}
+      .agenda-dow{font-size:.55rem;padding:4px 0;letter-spacing:0}
 
       /* Toast */
       .toast{bottom:20px;right:12px;left:12px;text-align:center}
@@ -660,6 +660,6 @@
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<script src="/app.js?v=20260504i"></script>
+<script src="/app.js?v=20260504j"></script>
 </body>
 </html>
