@@ -674,7 +674,10 @@ async function openProject(id) {
 
       <!-- Phases -->
       <div class="detail-section full" id="section-phases">
-        <div class="detail-section-title">Orçamento</div>
+        <div class="detail-section-title" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="togglePhases()">
+          <span>Orçamento</span><span id="phases-toggle-icon" style="font-size:.8rem">▼</span>
+        </div>
+        <div id="phases-container-wrap" style="display:none">
         <div class="inline-section" id="phases-container">
           <span class="detail-empty">Carregando...</span>
         </div>
@@ -701,6 +704,7 @@ async function openProject(id) {
             <button class="btn-sm ghost" onclick="cancelNewPhase()">Cancelar</button>
             <button class="btn-sm primary" onclick="saveNewPhase(${p.id})">✔ Salvar item</button>
           </div>
+        </div>
         </div>
       </div>
 
@@ -1656,6 +1660,15 @@ async function loadHistory(projectId) {
 function toggleHistory() {
   const container = document.getElementById('history-container');
   const icon = document.getElementById('history-toggle-icon');
+  if (!container) return;
+  const isHidden = container.style.display === 'none';
+  container.style.display = isHidden ? 'block' : 'none';
+  if (icon) icon.textContent = isHidden ? '▲' : '▼';
+}
+
+function togglePhases() {
+  const container = document.getElementById('phases-container-wrap');
+  const icon = document.getElementById('phases-toggle-icon');
   if (!container) return;
   const isHidden = container.style.display === 'none';
   container.style.display = isHidden ? 'block' : 'none';
