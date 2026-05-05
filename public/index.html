@@ -90,7 +90,7 @@
     .bar-editais{background:var(--editais)}
     .bar-recusado{background:var(--recusado)}
     .card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
-    .card-title{font-size:1.02rem;font-weight:700;line-height:1.3;text-transform:lowercase}
+    .card-title{font-size:1.02rem;font-weight:700;line-height:1.35;text-transform:lowercase;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;height:4.05em;flex-shrink:0}
     .card-title::first-letter{text-transform:uppercase}
     .badge{display:inline-block;border-radius:20px;font-size:.72rem;font-weight:600;padding:3px 10px;white-space:nowrap}
     .badge-realizado{background:rgba(0,201,167,.15);color:var(--realizado)}
@@ -98,8 +98,8 @@
     .badge-cadastrado{background:rgba(255,181,71,.15);color:var(--cadastrado)}
     .badge-editais{background:rgba(249,115,22,.15);color:var(--editais)}
     .badge-recusado{background:rgba(255,92,110,.15);color:var(--recusado)}
-    .card-desc{font-size:.85rem;color:var(--text2);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.6em}
-    .card-att-slot{min-height:1.4rem;display:flex;align-items:center}
+    .card-desc{font-size:.85rem;color:var(--text2);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;height:2.55em;flex-shrink:0}
+    .card-att-slot{height:1.4rem;display:flex;align-items:center;flex-shrink:0}
     .card-meta{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px}
     .meta-item{display:flex;flex-direction:column;gap:2px}
     .meta-label{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--text2)}
@@ -660,6 +660,6 @@
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<script src="/app.js?v=20260504g"></script>
+<script src="/app.js?v=20260504h"></script>
 </body>
 </html>
