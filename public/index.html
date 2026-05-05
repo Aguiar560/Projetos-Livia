@@ -39,7 +39,8 @@
       --shadow: 0 4px 24px rgba(0,0,0,.45);
     }
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
+    html{overflow-x:hidden}
+    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden}
 
     /* TOPBAR */
     .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 32px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
@@ -70,7 +71,7 @@
     .sidebar-count{margin-left:auto;background:var(--surface2);color:var(--text2);border-radius:20px;font-size:.72rem;padding:1px 8px;font-weight:600}
 
     /* MAIN */
-    .main{flex:1;padding:32px;overflow-y:auto}
+    .main{flex:1;padding:32px;overflow-y:auto;min-width:0;max-width:100%}
     .main-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;gap:16px;flex-wrap:wrap}
     .main-header h1{font-size:1.5rem;font-weight:700}
     .search-wrap{display:flex;align-items:center;gap:10px;flex:1;max-width:360px}
@@ -499,6 +500,13 @@
       .phase-form-row{grid-template-columns:1fr}
       .phase-meta-row{gap:10px}
       .phase-actions{flex-wrap:wrap}
+      .phase-item{min-width:0;max-width:100%}
+      .phase-progress-wrap{min-width:0;flex:1}
+      .phase-header{min-width:0}
+      .phase-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}
+      .detail-section-title{min-width:0;word-break:break-word}
+      .detail-section{min-width:0;max-width:100%;overflow:hidden}
+      #phases-section-title{min-width:0;overflow:hidden}
 
       /* Agenda mobile */
       .agenda-header{flex-direction:column;align-items:flex-start}
@@ -872,6 +880,6 @@
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<script src="/app.js?v=20260506f"></script>
+<script src="/app.js?v=20260506g"></script>
 </body>
 </html>
