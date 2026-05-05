@@ -272,12 +272,17 @@ app.post('/api/projects', requireAdmin, uploadLimiter, upload.array('attachments
   }
 });
 
-app.put('/api/projects/:id', requireAdmin, uploadLimiter, upload.array('attachments'), async (req, res) => {
+app.put('/api/projects/:id', requireAdmin, upload.array('attachments'), async (req, res) => {
   const id = sanitizeId(req.params.id);
   if (!id) return res.status(400).json({ error: 'ID inválido' });
   try {
     const payload = safeJson(req.body.payload || req.body);
     const files = await persistFiles(req.files);
+    // uploadLimiter só se houver arquivos
+    if (files.length > 0) {
+      await new Promise(resolve => uploadLimiter(req, res, resolve));
+      if (res.headersSent) return;
+    }
     const existing = await db.getProjectById(id);
     const changed = await db.updateProject(id, payload, files);
     if (!changed) return res.status(404).json({ error: 'Not found' });
@@ -431,13 +436,19 @@ app.post('/api/projects/:id/phases', requireAdmin, async (req, res) => {
   } catch(err){ res.status(400).json({ error: err.message }); }
 });
 
-app.put('/api/projects/:id/phases/:pid', requireAdmin, uploadLimiter, upload.array('phase_attachments'), async (req, res) => {
+// PUT fase — uploadLimiter só se tiver arquivos, senão usa limiter geral
+app.put('/api/projects/:id/phases/:pid', requireAdmin, upload.array('phase_attachments'), async (req, res) => {
   const id  = sanitizeId(req.params.id);
   const pid = sanitizeId(req.params.pid);
   if (!id || !pid) return res.status(400).json({ error: 'ID inválido' });
   try {
     const data = safeJson(req.body.payload || req.body);
     const newFiles = await persistFiles(req.files);
+    // Aplica uploadLimiter apenas se há arquivos sendo enviados
+    if (newFiles.length > 0) {
+      const limiterCheck = await new Promise(resolve => uploadLimiter(req, res, resolve));
+      if (res.headersSent) return; // limiter já respondeu com 429
+    }
     const ok = await db.updatePhase(pid, data, newFiles);
     ok ? res.json({ ok: true }) : res.status(404).json({ error: 'Not found' });
   } catch(err){ res.status(400).json({ error: err.message }); }
