@@ -1052,14 +1052,14 @@ async function editProject(id) {
 }
 
 async function deleteProject(id) {
-  if (!confirm('Confirma a exclusão deste projeto?')) return;
+  if (!confirm('Confirma a exclusão deste projeto? Esta ação não pode ser desfeita.')) return;
   try {
     await api(`/api/projects/${id}`, { method: 'DELETE' });
     showToast('Projeto excluído', 'success');
     closeProject();
     load();
-  } catch {
-    showToast('Erro ao excluir', 'error');
+  } catch(e) {
+    showToast('Erro ao excluir: ' + (e.message || 'tente novamente'), 'error');
   }
 }
 
