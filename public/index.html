@@ -199,8 +199,10 @@
 
     /* Phase rows */
     .phase-list{display:flex;flex-direction:column;gap:12px;margin-top:4px}
-    .phase-item{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+    .phase-item{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;cursor:default}
     .phase-item:hover{border-color:var(--border)}
+    .phase-item.drag-over{border:2px dashed var(--accent);background:rgba(108,99,255,.08)}
+    .phase-item.dragging{opacity:.4;transform:scale(.98)}
     .phase-header{display:flex;align-items:center;gap:10px;margin-bottom:8px}
     .phase-num{background:var(--accent);color:#fff;border-radius:6px;font-size:.72rem;font-weight:700;padding:2px 8px;flex-shrink:0}
     .phase-name{font-weight:600;font-size:.92rem;flex:1}
@@ -244,6 +246,75 @@
     .toast.show{opacity:1;transform:translateY(0)}
     .toast.success{border-color:var(--realizado);color:var(--realizado)}
     .toast.error{border-color:var(--danger);color:var(--danger)}
+
+    /* ── LIGHT MODE ───────────────────────────────────────────── */
+    [data-theme="light"]{
+      --bg:#f0f2f8;--surface:#ffffff;--surface2:#e8eaf0;
+      --border:#cdd0e0;--text:#1a1d27;--text2:#6b6f8e;
+      --shadow:0 4px 24px rgba(0,0,0,.12);
+    }
+    [data-theme="light"] .login-card,[data-theme="light"] .modal,[data-theme="light"] .detail-section,
+    [data-theme="light"] .phase-item,[data-theme="light"] .phase-edit-form{background:var(--surface)}
+    [data-theme="light"] .card{box-shadow:0 2px 12px rgba(0,0,0,.08)}
+    [data-theme="light"] .sidebar,.theme-btn{transition:background .2s,color .2s}
+
+    .theme-btn{background:transparent;border:1px solid var(--border);color:var(--text2);
+      width:36px;height:36px;border-radius:10px;cursor:pointer;font-size:1rem;
+      display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+    .theme-btn:hover{background:var(--surface2);color:var(--text)}
+
+    /* ── CARD ANIMATION ───────────────────────────────────────── */
+    @keyframes cardIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+    .card{animation:cardIn .32s ease both}
+
+    /* ── SKELETON LOADING ─────────────────────────────────────── */
+    @keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
+    .skeleton{border-radius:var(--radius);background:var(--surface);border:1px solid var(--border);
+      padding:22px;display:flex;flex-direction:column;gap:14px}
+    .skel-line{border-radius:6px;background:linear-gradient(90deg,var(--surface2) 25%,var(--border) 50%,var(--surface2) 75%);
+      background-size:800px 100%;animation:shimmer 1.4s infinite linear}
+    .skel-title{height:18px;width:70%}
+    .skel-badge{height:20px;width:80px;border-radius:20px;margin-left:auto}
+    .skel-row{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+    .skel-desc{height:14px}
+    .skel-desc2{height:14px;width:80%;margin-top:4px}
+    .skel-bar{height:6px;border-radius:99px}
+    .skel-btn{height:36px;border-radius:10px}
+
+    /* ── CONFIRM DIALOG ───────────────────────────────────────── */
+    .confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:500;
+      display:flex;align-items:center;justify-content:center;padding:20px;
+      opacity:0;pointer-events:none;transition:opacity .2s}
+    .confirm-overlay.open{opacity:1;pointer-events:all}
+    .confirm-box{background:var(--surface);border:1px solid var(--border);border-radius:18px;
+      padding:32px 28px 24px;width:100%;max-width:400px;box-shadow:var(--shadow);
+      transform:translateY(16px);transition:transform .2s;display:flex;flex-direction:column;gap:16px}
+    .confirm-overlay.open .confirm-box{transform:translateY(0)}
+    .confirm-icon{font-size:2rem;text-align:center}
+    .confirm-title{font-size:1rem;font-weight:700;text-align:center;color:var(--text)}
+    .confirm-msg{font-size:.88rem;color:var(--text2);text-align:center;line-height:1.55}
+    .confirm-actions{display:flex;gap:10px;margin-top:4px}
+    .confirm-actions .btn{flex:1;justify-content:center}
+
+    /* ── PREVIEW MODAL ────────────────────────────────────────── */
+    .preview-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:450;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;
+      opacity:0;pointer-events:none;transition:opacity .2s}
+    .preview-overlay.open{opacity:1;pointer-events:all}
+    .preview-header{display:flex;align-items:center;gap:12px;margin-bottom:12px;width:100%;max-width:900px}
+    .preview-name{flex:1;font-size:.9rem;font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .preview-close{background:rgba(255,255,255,.15);border:none;color:#fff;width:36px;height:36px;
+      border-radius:8px;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;
+      flex-shrink:0;transition:background .15s}
+    .preview-close:hover{background:var(--danger)}
+    .preview-download{background:var(--accent);color:#fff;border:none;border-radius:8px;
+      padding:7px 16px;font-family:inherit;font-size:.82rem;font-weight:600;cursor:pointer;
+      text-decoration:none;display:inline-flex;align-items:center;gap:5px;transition:background .15s;flex-shrink:0}
+    .preview-download:hover{background:#5650d4}
+    .preview-content{width:100%;max-width:900px;max-height:82vh;display:flex;align-items:center;justify-content:center;border-radius:12px;overflow:hidden}
+    .preview-content img{max-width:100%;max-height:82vh;border-radius:12px;object-fit:contain}
+    .preview-content iframe{width:100%;height:80vh;border:none;border-radius:12px}
+    .preview-fallback{color:var(--text2);text-align:center;padding:40px;font-size:.9rem}
 
     /* ===== AGENDA ===== */
     #agenda-view{display:none}
@@ -458,6 +529,7 @@
       <span id="user-badge-name"></span>
       <span id="user-badge-role" style="background:var(--surface2);border-radius:6px;padding:2px 8px;font-size:.7rem;font-weight:600"></span>
     </div>
+    <button class="theme-btn" id="theme-toggle-btn" onclick="toggleTheme()" title="Alternar tema"></button>
     <button class="btn btn-primary" onclick="openModal()">Novo Projeto</button>
     <button class="btn btn-ghost" onclick="doLogout()" title="Sair" style="padding:9px 12px;font-size:.85rem">Sair</button>
   </div>
@@ -566,6 +638,29 @@
   </main>
 </div>
 
+<!-- CONFIRM DIALOG -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <div class="confirm-icon" id="confirm-icon">⚠️</div>
+    <div class="confirm-title" id="confirm-title">Confirmar ação</div>
+    <div class="confirm-msg" id="confirm-msg"></div>
+    <div class="confirm-actions">
+      <button class="btn btn-ghost" onclick="_confirmCancel()">Cancelar</button>
+      <button class="btn btn-danger" id="confirm-ok-btn" onclick="_confirmOk()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- PREVIEW MODAL -->
+<div class="preview-overlay" id="previewOverlay" onclick="closePreview(event)">
+  <div class="preview-header">
+    <span class="preview-name" id="preview-name"></span>
+    <a class="preview-download" id="preview-download" href="#" download>⬇ Baixar</a>
+    <button class="preview-close" onclick="closePreview()">✕</button>
+  </div>
+  <div class="preview-content" id="preview-content"></div>
+</div>
+
 <!-- MODAL -->
 <div class="modal-overlay" id="modalOverlay" onclick="closeModalOutside(event)">
   <div class="modal" id="modal">
@@ -660,6 +755,6 @@
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<script src="/app.js?v=20260504j"></script>
+<script src="/app.js?v=20260505a"></script>
 </body>
 </html>

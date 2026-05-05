@@ -274,6 +274,7 @@ async function api(url, options = {}) {
 }
 
 async function load() {
+  showSkeletons(6);
   try {
     // Sempre busca a role atualizada do servidor a cada load
     try {
@@ -365,14 +366,15 @@ function renderList() {
     return;
   }
 
-  container.innerHTML = filtered.map(p => {
+  container.innerHTML = filtered.map((p, idx) => {
     const slug = p.status === 'em andamento' ? 'andamento' : p.status === 'editais abertos' ? 'editais' : p.status;
     const progress = Number(p.progress) || 0;
     const progressColor = progress >= 80 ? 'var(--realizado)' : progress >= 40 ? 'var(--andamento)' : 'var(--cadastrado)';
     const budget = formatBudget(p.budget, p.currency);
     const attCount = parseAttachments(p.attachments).filter(a => a && a.filename).length;
+    const delay = Math.min(idx * 0.05, 0.4);
 
-    return `<div class="card">
+    return `<div class="card" style="animation-delay:${delay}s">
       <div class="card-accent-bar bar-${slug}"></div>
       <div class="card-header">
         <div class="card-title">${esc(p.name)}</div>
@@ -436,12 +438,15 @@ function renderAttachments(p) {
 function renderAttachments(p) {
   const atts = parseAttachments(p.attachments).filter(a => a && a.filename);
   if (!atts.length) return '';
-  const items = atts.map(a => `
-    <a class="att-item" href="/api/projects/${p.id}/attachments/${encodeURIComponent(a.filename)}" download="${esc(a.originalname)}" title="Baixar ${esc(a.originalname)}">
+  const items = atts.map(a => {
+    const url = `/api/projects/${p.id}/attachments/${encodeURIComponent(a.filename)}`;
+    const previewable = ['jpg','jpeg','png','gif','webp','pdf'].includes((a.originalname||'').split('.').pop().toLowerCase());
+    return `<div class="att-item" onclick="openPreview('${url}','${esc(a.originalname)}','${url}')" style="cursor:pointer" title="${previewable ? 'Visualizar' : 'Baixar'} ${esc(a.originalname)}">
       <span class="att-icon">${fileIcon(a.originalname)}</span>
       <span class="att-name">${esc(a.originalname)}</span>
-      <span class="att-dl">⬇</span>
-    </a>`).join('');
+      <span class="att-dl">${previewable ? '🔍' : '⬇'}</span>
+    </div>`;
+  }).join('');
   return `<div class="att-list">${items}</div>`;
 }
 
@@ -800,7 +805,7 @@ async function editInstitution(instId, projectId, totalBudget, currency, current
 }
 
 async function deleteInstitution(instId, projectId) {
-  if (!confirm('Remover esta instituição?')) return;
+  if (!await confirmDialog('Remover esta instituição?', '🏛️', 'Remover')) return;
   try {
     await api(`/api/projects/${projectId}/institutions/${instId}`, { method: 'DELETE' });
     const proj = allProjects.find(x => x.id === projectId);
@@ -836,26 +841,31 @@ function renderPhases(container, list, projectId, totalBudget, currency) {
     container.innerHTML = '<span class="detail-empty">Nenhuma fase cadastrada</span>';
     return;
   }
-  container.innerHTML = `<div class="phase-list">
+  container.innerHTML = `<div class="phase-list" id="phase-list-${projectId}">
     ${list.map((ph, idx) => {
       const prog = Number(ph.progress) || 0;
       const progColor = prog >= 80 ? 'var(--realizado)' : prog >= 40 ? 'var(--andamento)' : 'var(--cadastrado)';
       const atts = parseAttachments(ph.attachments).filter(a => a && a.filename);
       const attHtml = atts.length
-        ? `<div class="phase-att-list">${atts.map(a => `
-            <div class="phase-att-item">
+        ? `<div class="phase-att-list">${atts.map(a => {
+            const attUrl = `/api/projects/${projectId}/phases/${ph.id}/attachments/${encodeURIComponent(a.filename)}`;
+            const previewable = ['jpg','jpeg','png','gif','webp','pdf'].includes((a.originalname||'').split('.').pop().toLowerCase());
+            return `<div class="phase-att-item">
               <span>${fileIcon(a.originalname)}</span>
               <span class="phase-att-name" title="${esc(a.originalname)}">${esc(a.originalname)}</span>
               <div class="phase-att-actions">
-                <a href="/api/projects/${projectId}/phases/${ph.id}/attachments/${encodeURIComponent(a.filename)}" download="${esc(a.originalname)}" class="btn-sm ghost" title="Baixar">⬇</a>
+                ${previewable ? `<button class="btn-sm ghost" onclick="openPreview('${attUrl}','${esc(a.originalname)}','${attUrl}')" title="Visualizar">🔍</button>` : ''}
+                <a href="${attUrl}" download="${esc(a.originalname)}" class="btn-sm ghost" title="Baixar">⬇</a>
                 <button class="btn-sm danger" onclick="removePhaseAttachment(${ph.id},${projectId},'${encodeURIComponent(a.filename)}')" title="Remover">✕</button>
               </div>
-            </div>`).join('')}</div>`
+            </div>`;
+          }).join('')}</div>`
         : '';
 
-      return `<div class="phase-item" id="phase-item-${ph.id}">
+      return `<div class="phase-item" id="phase-item-${ph.id}" draggable="true"
+          data-phase-id="${ph.id}" data-project-id="${projectId}" data-currency="${currency}">
         <div class="phase-header">
-          <span class="phase-num">Fase ${idx + 1}</span>
+          <span class="phase-num" style="cursor:grab" title="Arrastar para reordenar">⠿ Fase ${idx + 1}</span>
           <span class="phase-name">${esc(ph.name)}</span>
           <div style="display:flex;gap:5px">
             <button class="btn-sm ghost" onclick="showEditPhaseForm(${ph.id},${projectId},'${currency}')">✏️</button>
@@ -890,9 +900,6 @@ function renderPhases(container, list, projectId, totalBudget, currency) {
             <div><span class="phase-form-label">Orçamento</span><input id="eph-budget-${ph.id}" type="number" min="0" step="0.01" value="${ph.budget || 0}" /></div>
             <div><span class="phase-form-label">Progresso (%)</span><input id="eph-progress-${ph.id}" type="number" min="0" max="100" value="${ph.progress || 0}" /></div>
           </div>
-          <div class="phase-form-row">
-            <div><span class="phase-form-label">Ordem</span><input id="eph-order-${ph.id}" type="number" min="0" value="${ph.order_num || 0}" /></div>
-          </div>
           <div class="phase-form-actions">
             <button class="btn-sm ghost" onclick="document.getElementById('phase-edit-form-${ph.id}').style.display='none'">Cancelar</button>
             <button class="btn-sm primary" onclick="saveEditPhase(${ph.id},${projectId},'${currency}')">✔ Salvar</button>
@@ -901,6 +908,74 @@ function renderPhases(container, list, projectId, totalBudget, currency) {
       </div>`;
     }).join('')}
   </div>`;
+
+  // Inicializa drag & drop
+  initPhaseDragDrop(projectId, currency);
+}
+
+// ── Phase Drag & Drop ─────────────────────────────────────────────────────────
+function initPhaseDragDrop(projectId, currency) {
+  const list = document.getElementById(`phase-list-${projectId}`);
+  if (!list) return;
+
+  let dragSrc = null;
+
+  list.querySelectorAll('.phase-item').forEach(item => {
+    item.addEventListener('dragstart', e => {
+      dragSrc = item;
+      item.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    item.addEventListener('dragend', () => {
+      item.classList.remove('dragging');
+      list.querySelectorAll('.phase-item').forEach(i => i.classList.remove('drag-over'));
+      // Salva nova ordem
+      savePhasesOrder(projectId, currency);
+    });
+    item.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (dragSrc && item !== dragSrc) {
+        list.querySelectorAll('.phase-item').forEach(i => i.classList.remove('drag-over'));
+        item.classList.add('drag-over');
+        // Reordena no DOM
+        const items = [...list.querySelectorAll('.phase-item')];
+        const srcIdx = items.indexOf(dragSrc);
+        const tgtIdx = items.indexOf(item);
+        if (srcIdx < tgtIdx) item.after(dragSrc);
+        else item.before(dragSrc);
+      }
+    });
+    item.addEventListener('dragleave', () => item.classList.remove('drag-over'));
+    item.addEventListener('drop', e => {
+      e.preventDefault();
+      item.classList.remove('drag-over');
+    });
+  });
+}
+
+async function savePhasesOrder(projectId, currency) {
+  const list = document.getElementById(`phase-list-${projectId}`);
+  if (!list) return;
+  const items = [...list.querySelectorAll('.phase-item')];
+  // Atualiza numeração visual das fases
+  items.forEach((el, idx) => {
+    const numEl = el.querySelector('.phase-num');
+    if (numEl) numEl.textContent = `⠿ Fase ${idx + 1}`;
+  });
+  // Persiste nova ordem via API
+  try {
+    const updates = items.map((el, idx) => ({
+      id: Number(el.dataset.phaseId),
+      order_num: idx
+    }));
+    await Promise.all(updates.map(u => {
+      const fd = new FormData();
+      fd.append('payload', JSON.stringify({ order_num: u.order_num }));
+      return fetch(`/api/projects/${projectId}/phases/${u.id}`, { method: 'PUT', body: fd, headers: authHeader() });
+    }));
+    showToast('Ordem das fases salva!', 'success');
+  } catch { showToast('Erro ao salvar ordem', 'error'); }
 }
 
 function showNewPhaseForm(projectId) {
@@ -973,7 +1048,7 @@ async function uploadPhaseAttachments(phaseId, projectId) {
 }
 
 async function removePhaseAttachment(phaseId, projectId, encodedFilename) {
-  if (!confirm('Remover este anexo?')) return;
+  if (!await confirmDialog('Remover este anexo?', '📎', 'Remover')) return;
   try {
     await api(`/api/projects/${projectId}/phases/${phaseId}/attachments/${encodedFilename}`, { method: 'DELETE' });
     const proj = allProjects.find(x => x.id === projectId);
@@ -982,7 +1057,7 @@ async function removePhaseAttachment(phaseId, projectId, encodedFilename) {
   } catch { showToast('Erro ao remover anexo', 'error'); }
 }
 async function deletePhase(phaseId, projectId) {
-  if (!confirm('Remover esta fase?')) return;
+  if (!await confirmDialog('Remover esta fase? Os anexos da fase também serão removidos.', '🗑️', 'Remover fase')) return;
   try {
     await api(`/api/projects/${projectId}/phases/${phaseId}`, { method: 'DELETE' });
     const proj = allProjects.find(x => x.id === projectId);
@@ -1053,7 +1128,7 @@ async function editProject(id) {
 }
 
 async function deleteProject(id) {
-  if (!confirm('Confirma a exclusão deste projeto? Esta ação não pode ser desfeita.')) return;
+  if (!await confirmDialog('Confirma a exclusão deste projeto? Esta ação não pode ser desfeita.', '🗑️', 'Excluir projeto')) return;
   try {
     await api(`/api/projects/${id}`, { method: 'DELETE' });
     showToast('Projeto excluído', 'success');
@@ -1194,24 +1269,20 @@ async function doLogin() {
 }
 
 // ── Logout ────────────────────────────────────────────────────────────────────
-function doLogout() {
-  if (!confirm('Deseja sair do sistema?')) return;
+async function doLogout() {
+  if (!await confirmDialog('Deseja sair do sistema?', '⬅️', 'Sair', false)) return;
   sessionStorage.removeItem('auth');
   sessionStorage.removeItem('role');
   sessionStorage.removeItem('user');
-  // Limpa o badge
   const badgeEl = document.getElementById('user-badge');
   if (badgeEl) badgeEl.style.display = 'none';
-  // Limpa os dados em memória
   allProjects = [];
-  // Fecha views
   ['detail-view', 'agenda-view'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
   const gv = document.getElementById('grid-view');
   if (gv) gv.style.display = 'block';
-  // Volta para a tela de login
   const ls = document.getElementById('login-screen');
   if (ls) ls.classList.remove('hidden');
   const lu = document.getElementById('login-user');
@@ -1231,6 +1302,96 @@ function showToast(msg, type = 'success') {
   setTimeout(() => t.classList.remove('show'), 3000);
 }
 
+// ── Confirm Dialog ────────────────────────────────────────────────────────────
+let _confirmResolve = null;
+function confirmDialog(msg, icon = '⚠️', okLabel = 'Confirmar', isDanger = true) {
+  return new Promise(resolve => {
+    _confirmResolve = resolve;
+    document.getElementById('confirm-msg').textContent = msg;
+    document.getElementById('confirm-icon').textContent = icon;
+    const okBtn = document.getElementById('confirm-ok-btn');
+    okBtn.textContent = okLabel;
+    okBtn.className = isDanger ? 'btn btn-danger' : 'btn btn-primary';
+    document.getElementById('confirmOverlay').classList.add('open');
+  });
+}
+function _confirmOk() {
+  document.getElementById('confirmOverlay').classList.remove('open');
+  if (_confirmResolve) { _confirmResolve(true); _confirmResolve = null; }
+}
+function _confirmCancel() {
+  document.getElementById('confirmOverlay').classList.remove('open');
+  if (_confirmResolve) { _confirmResolve(false); _confirmResolve = null; }
+}
+
+// ── Theme Toggle ──────────────────────────────────────────────────────────────
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('theme', theme);
+  const btn = document.getElementById('theme-toggle-btn');
+  if (btn) btn.textContent = theme === 'light' ? '🌙' : '☀️';
+}
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme') || 'dark';
+  applyTheme(cur === 'dark' ? 'light' : 'dark');
+}
+
+// ── Attachment Preview ────────────────────────────────────────────────────────
+function openPreview(url, name, downloadUrl) {
+  const ext = (name || '').split('.').pop().toLowerCase();
+  const content = document.getElementById('preview-content');
+  const nameEl  = document.getElementById('preview-name');
+  const dlEl    = document.getElementById('preview-download');
+
+  nameEl.textContent = name;
+  dlEl.href = downloadUrl || url;
+  dlEl.download = name;
+
+  const imgExts = ['jpg','jpeg','png','gif','webp','svg','bmp'];
+  if (imgExts.includes(ext)) {
+    content.innerHTML = `<img src="${url}" alt="${name}">`;
+  } else if (ext === 'pdf') {
+    content.innerHTML = `<iframe src="${url}" title="${name}"></iframe>`;
+  } else {
+    content.innerHTML = `<div class="preview-fallback">
+      <div style="font-size:3rem;margin-bottom:12px">📎</div>
+      <div style="margin-bottom:16px;color:var(--text)">Preview não disponível para este tipo de arquivo.</div>
+      <a class="preview-download" href="${downloadUrl || url}" download="${name}">⬇ Baixar ${name}</a>
+    </div>`;
+  }
+  document.getElementById('previewOverlay').classList.add('open');
+}
+function closePreview(e) {
+  if (e && e.target !== document.getElementById('previewOverlay')) return;
+  document.getElementById('previewOverlay').classList.remove('open');
+  document.getElementById('preview-content').innerHTML = '';
+}
+
+// ── Skeleton Loading ──────────────────────────────────────────────────────────
+function showSkeletons(count = 6) {
+  const container = document.getElementById('list');
+  if (!container) return;
+  container.innerHTML = Array.from({length: count}, () => `
+    <div class="skeleton">
+      <div class="skel-row"><div class="skel-line skel-title"></div><div class="skel-line skel-badge"></div></div>
+      <div class="skel-line skel-desc"></div>
+      <div class="skel-line skel-desc2"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;margin-top:4px">
+        <div class="skel-line" style="height:32px;border-radius:8px"></div>
+        <div class="skel-line" style="height:32px;border-radius:8px"></div>
+      </div>
+      <div class="skel-line skel-bar" style="margin-top:4px"></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <div class="skel-line skel-btn" style="flex:2"></div>
+        <div class="skel-line skel-btn" style="flex:1"></div>
+        <div class="skel-line skel-btn" style="flex:1"></div>
+      </div>
+    </div>`).join('');
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
+// Aplica tema salvo (antes de qualquer render)
+applyTheme(localStorage.getItem('theme') || 'dark');
+
 // load() só é chamado após login bem-sucedido (ou se já autenticado)
 if (sessionStorage.getItem('auth')) load();
