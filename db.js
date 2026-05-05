@@ -296,6 +296,18 @@ module.exports = {
     const [r] = await POOL.query('UPDATE project_phases SET attachments=? WHERE id=?', [JSON.stringify(atts), phaseId]);
     return r.affectedRows > 0;
   },
+  async removeProjectAttachment(projectId, filename){
+    const project = await this.getProjectById(projectId);
+    if (!project) return false;
+    const atts = (project.attachments || []).filter(a => a.filename !== filename);
+    const [r] = await POOL.query('UPDATE projects SET attachments=? WHERE id=?', [JSON.stringify(atts), projectId]);
+    if (r.affectedRows > 0) {
+      // Remove o blob do banco também para liberar espaço
+      await this.deleteFileBlob(filename);
+      return true;
+    }
+    return false;
+  },
   async deletePhase(id){
     const [r] = await POOL.query('DELETE FROM project_phases WHERE id=?', [id]);
     return r.affectedRows > 0;

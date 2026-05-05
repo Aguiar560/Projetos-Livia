@@ -334,6 +334,19 @@ app.get('/api/projects/:id/attachments/:filename', async (req, res) => {
 });
 
 // ── Institutions ──────────────────────────────────────────────────────────────
+app.delete('/api/projects/:id/attachments/:filename', requireAdmin, async (req, res) => {
+  const id       = sanitizeId(req.params.id);
+  const filename = sanitizeFilename(req.params.filename);
+  if (!id || !filename) return res.status(400).json({ error: 'Parâmetros inválidos' });
+  try {
+    const ok = await db.removeProjectAttachment(id, filename);
+    ok ? res.json({ ok: true }) : res.status(404).json({ error: 'Not found' });
+  } catch (err) {
+    console.error('[DELETE attachment]', err.message);
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
 app.get('/api/projects/:id/institutions', async (req, res) => {
   const id = sanitizeId(req.params.id);
   if (!id) return res.status(400).json({ error: 'ID inválido' });

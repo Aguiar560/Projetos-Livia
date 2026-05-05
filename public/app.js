@@ -536,18 +536,25 @@ async function openProject(id) {
       <span class="detail-value${highlight ? ' highlight' : ''}">${value || '—'}</span>
     </div>`;
 
+  const role = sessionStorage.getItem('role') || 'viewer';
+  const canEdit = role === 'admin';
+
   const attHtml = atts.length
     ? atts.map(a => {
         const url = `/api/projects/${p.id}/attachments/${encodeURIComponent(a.filename)}`;
         const previewable = ['jpg','jpeg','png','gif','webp','pdf'].includes((a.originalname||'').split('.').pop().toLowerCase());
-        return `<div class="att-item att-clickable"
-            data-url="${esc(url)}"
-            data-name="${esc(a.originalname)}"
-            data-dl="${esc(url)}?dl=1"
-            style="cursor:pointer">
-          <span class="att-icon">${fileIcon(a.originalname)}</span>
-          <span class="att-name">${esc(a.originalname)}</span>
-          <span class="att-dl">${previewable ? '🔍 Visualizar' : '⬇ Baixar'}</span>
+        return `<div class="att-item" id="att-row-${esc(a.filename)}">
+          <div class="att-clickable" style="flex:1;display:flex;align-items:center;gap:10px;cursor:pointer;min-width:0"
+              data-url="${esc(url)}"
+              data-name="${esc(a.originalname)}"
+              data-dl="${esc(url)}?dl=1">
+            <span class="att-icon">${fileIcon(a.originalname)}</span>
+            <span class="att-name">${esc(a.originalname)}</span>
+            <span class="att-dl">${previewable ? '🔍 Visualizar' : '⬇ Baixar'}</span>
+          </div>
+          ${canEdit ? `<button class="btn-sm danger" style="flex-shrink:0"
+              onclick="removeProjectAttachment(${p.id},'${encodeURIComponent(a.filename)}')"
+              title="Excluir anexo">✕</button>` : ''}
         </div>`;
       }).join('')
     : '<span class="detail-empty">Nenhum anexo</span>';
@@ -1266,6 +1273,33 @@ async function deleteProject(id) {
     load();
   } catch(e) {
     showToast('Erro ao excluir: ' + (e.message || 'tente novamente'), 'error');
+  }
+}
+
+async function removeProjectAttachment(projectId, encodedFilename) {
+  if (!await confirmDialog('Excluir este anexo? A ação não pode ser desfeita.', '🗑️', 'Excluir anexo')) return;
+  try {
+    await api(`/api/projects/${projectId}/attachments/${encodedFilename}`, { method: 'DELETE' });
+    showToast('Anexo excluído', 'success');
+    // Remove a linha da UI sem recarregar tudo
+    const row = document.getElementById(`att-row-${decodeURIComponent(encodedFilename)}`);
+    if (row) {
+      row.style.transition = 'opacity .25s';
+      row.style.opacity = '0';
+      setTimeout(() => {
+        row.remove();
+        // Se não sobrou nenhum anexo, mostra mensagem vazia
+        const list = document.querySelector('.att-list');
+        if (list && !list.querySelector('.att-item')) {
+          list.innerHTML = '<span class="detail-empty">Nenhum anexo</span>';
+        }
+        // Atualiza também o projeto em memória
+        const p = allProjects.find(x => x.id === projectId);
+        if (p) p.attachments = (p.attachments || []).filter(a => a.filename !== decodeURIComponent(encodedFilename));
+      }, 250);
+    }
+  } catch(e) {
+    showToast('Erro ao excluir anexo: ' + (e.message || 'tente novamente'), 'error');
   }
 }
 
