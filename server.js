@@ -55,9 +55,12 @@ const ROLE_MAP  = {}; // { usuario: 'admin' | 'comum' }
 (process.env.USERS || '').split(',').forEach(entry => {
   const parts = entry.trim().split(':');
   if (parts.length >= 3) {
-    const [user, pass, role] = parts;
+    const user = parts[0];
+    const pass = parts[1];
+    const role = parts[2].trim(); // trim para remover espaços/quebras de linha
     USER_MAP[user]  = pass;
     ROLE_MAP[user]  = role === 'admin' ? 'admin' : 'comum';
+    console.log(`[AUTH] Usuário carregado: ${user} → role: ${ROLE_MAP[user]}`);
   }
 });
 
