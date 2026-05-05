@@ -1051,7 +1051,8 @@ async function deleteProject(id) {
 }
 
 // ── Form submit ───────────────────────────────────────────────────────────────
-document.getElementById('projectForm').addEventListener('submit', async e => {
+const _projectForm = document.getElementById('projectForm');
+if (_projectForm) _projectForm.addEventListener('submit', async e => {
   e.preventDefault();
   const form = e.target;
   const btn = document.getElementById('submitBtn');
@@ -1097,7 +1098,7 @@ document.getElementById('projectForm').addEventListener('submit', async e => {
     btn.disabled = false;
     btn.textContent = editingId ? 'Salvar alterações' : 'Salvar projeto';
   }
-});
+}); // fim addEventListener submit
 
 // ── Login ─────────────────────────────────────────────────────────────────────
 // Helper de role — retorna 'admin' ou 'comum'
