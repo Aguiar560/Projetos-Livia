@@ -377,7 +377,7 @@ function renderList() {
         <div class="card-title">${esc(p.name)}</div>
         <span class="badge badge-${slug}">${esc(p.status)}</span>
       </div>
-      ${p.description ? `<div class="card-desc">${esc(p.description)}</div>` : ''}
+      <div class="card-desc">${p.description ? esc(p.description) : ''}</div>
       <div class="card-meta">
         <div class="meta-item"><span class="meta-label">Cliente</span><span class="meta-value">${esc(p.client || '—')}</span></div>
         <div class="meta-item"><span class="meta-label">Orçamento</span><span class="meta-value" style="color:var(--realizado);font-weight:700">${budget}</span></div>
@@ -391,7 +391,7 @@ function renderList() {
           <div class="progress-bar-fill" style="width:${progress}%;background:${progressColor}"></div>
         </div>
       </div>
-      ${attCount > 0 ? `<div style="font-size:.78rem;color:var(--text2)">📎 ${attCount} anexo${attCount > 1 ? 's' : ''}</div>` : ''}
+      <div class="card-att-slot">${attCount > 0 ? `<span style="font-size:.78rem;color:var(--text2)">📎 ${attCount} anexo${attCount > 1 ? 's' : ''}</span>` : ''}</div>
       <div class="card-actions">
         <button class="btn btn-primary" style="flex:2" onclick="openProject(${p.id})">Detalhes</button>
         <button class="btn btn-ghost" onclick="editProject(${p.id})">✏️</button>
