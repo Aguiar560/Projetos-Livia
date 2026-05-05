@@ -1648,34 +1648,64 @@ function toggleTheme() {
 }
 
 // ── Attachment Preview ────────────────────────────────────────────────────────
-function openPreview(url, name, downloadUrl) {
+// Mantém referência ao blob URL atual para revogar ao fechar (evita memory leak)
+let _previewBlobUrl = null;
+
+async function openPreview(url, name, downloadUrl) {
   const ext = (name || '').split('.').pop().toLowerCase();
   const content = document.getElementById('preview-content');
   const nameEl  = document.getElementById('preview-name');
   const dlEl    = document.getElementById('preview-download');
 
   nameEl.textContent = name;
+  // O botão de download usa a URL com ?dl=1 (força attachment no servidor)
   dlEl.href = downloadUrl || url;
   dlEl.download = name;
 
+  // Mostra spinner enquanto carrega
+  content.innerHTML = `<div style="color:var(--text2);font-size:1.1rem">⏳ Carregando...</div>`;
+  document.getElementById('previewOverlay').classList.add('open');
+
   const imgExts = ['jpg','jpeg','png','gif','webp','svg','bmp'];
-  if (imgExts.includes(ext)) {
-    content.innerHTML = `<img src="${url}" alt="${name}">`;
-  } else if (ext === 'pdf') {
-    content.innerHTML = `<iframe src="${url}" title="${name}"></iframe>`;
+  const isImg = imgExts.includes(ext);
+  const isPdf = ext === 'pdf';
+
+  if (isImg || isPdf) {
+    try {
+      // Fetch com Authorization header — necessário pois <img>/<iframe> não enviam credenciais Basic Auth
+      const res = await fetch(url, { headers: authHeader() });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      // Revoga blob URL anterior para evitar memory leak
+      if (_previewBlobUrl) { URL.revokeObjectURL(_previewBlobUrl); _previewBlobUrl = null; }
+      _previewBlobUrl = URL.createObjectURL(blob);
+      if (isImg) {
+        content.innerHTML = `<img src="${_previewBlobUrl}" alt="${esc(name)}">`;
+      } else {
+        content.innerHTML = `<iframe src="${_previewBlobUrl}" title="${esc(name)}"></iframe>`;
+      }
+    } catch(e) {
+      content.innerHTML = `<div class="preview-fallback">
+        <div style="font-size:3rem;margin-bottom:12px">⚠️</div>
+        <div style="margin-bottom:16px;color:var(--text)">Não foi possível carregar o arquivo.</div>
+        <a class="preview-download" href="${esc(downloadUrl || url)}" download="${esc(name)}">⬇ Baixar ${esc(name)}</a>
+      </div>`;
+    }
   } else {
     content.innerHTML = `<div class="preview-fallback">
       <div style="font-size:3rem;margin-bottom:12px">📎</div>
       <div style="margin-bottom:16px;color:var(--text)">Preview não disponível para este tipo de arquivo.</div>
-      <a class="preview-download" href="${downloadUrl || url}" download="${name}">⬇ Baixar ${name}</a>
+      <a class="preview-download" href="${esc(downloadUrl || url)}" download="${esc(name)}">⬇ Baixar ${esc(name)}</a>
     </div>`;
   }
-  document.getElementById('previewOverlay').classList.add('open');
 }
+
 function closePreview(e) {
   if (e && e.target !== document.getElementById('previewOverlay')) return;
   document.getElementById('previewOverlay').classList.remove('open');
   document.getElementById('preview-content').innerHTML = '';
+  // Libera memória do blob URL
+  if (_previewBlobUrl) { URL.revokeObjectURL(_previewBlobUrl); _previewBlobUrl = null; }
 }
 
 // ── Skeleton Loading ──────────────────────────────────────────────────────────
