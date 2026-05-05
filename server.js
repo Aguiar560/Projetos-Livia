@@ -49,30 +49,23 @@ const uploadLimiter = rateLimit({
 });
 
 // ── 4. Usuários e Roles ───────────────────────────────────────────────────────
-// Formato no .env: USERS=admin:senha1:admin,livia:senha2:comum
-const USER_MAP  = {}; // { usuario: senha }
-const ROLE_MAP  = {}; // { usuario: 'admin' | 'comum' }
+const USER_MAP = {};
+const ROLE_MAP = {};
 
-(process.env.USERS || '').split(',').forEach(entry => {
-  const parts = entry.trim().split(':');
-  if (parts.length >= 3) {
-    const user = parts[0];
-    const pass = parts[1];
-    const role = parts[2].trim(); // trim para remover espaços/quebras de linha
-    USER_MAP[user]  = pass;
-    ROLE_MAP[user]  = role === 'admin' ? 'admin' : 'comum';
-    console.log(`[AUTH] Usuário carregado: ${user} → role: ${ROLE_MAP[user]}`);
-  }
-});
+const ADMIN_USER = (process.env.ADMIN_USER || '').trim();
+const ADMIN_PASS = (process.env.ADMIN_PASS || '').trim();
 
-if (Object.keys(USER_MAP).length === 0) {
-  console.warn('[SECURITY] Nenhum usuário configurado em USERS — autenticação desabilitada!');
-} else {
+if (ADMIN_USER && ADMIN_PASS) {
+  USER_MAP[ADMIN_USER] = ADMIN_PASS;
+  ROLE_MAP[ADMIN_USER] = 'admin';
+  console.log(`[AUTH] Usuário admin carregado: ${ADMIN_USER}`);
   app.use(basicAuth({
     users: USER_MAP,
     challenge: true,
     realm: 'Projeto Livia'
   }));
+} else {
+  console.warn('[SECURITY] ADMIN_USER/ADMIN_PASS não definidos — autenticação desabilitada!');
 }
 
 // ── 5. Body size limit ────────────────────────────────────────────────────────
