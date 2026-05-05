@@ -283,9 +283,15 @@ module.exports = {
     const existing = await this.getPhaseById(id);
     if (!existing) return false;
     const attachments = (existing.attachments || []).concat(newFiles || []);
+    // Só sobrescreve campos que foram explicitamente enviados no payload
+    const name        = data.name        !== undefined ? data.name        : existing.name;
+    const description = data.description !== undefined ? data.description : existing.description;
+    const budget      = data.budget      !== undefined ? Number(data.budget)   : existing.budget;
+    const progress    = data.progress    !== undefined ? Number(data.progress) : existing.progress;
+    const order_num   = data.order_num   !== undefined ? Number(data.order_num): existing.order_num;
     const [r] = await POOL.query(
       'UPDATE project_phases SET name=?, description=?, budget=?, progress=?, order_num=?, attachments=? WHERE id=?',
-      [data.name, data.description || '', Number(data.budget) || 0, Number(data.progress) || 0, Number(data.order_num) || 0, JSON.stringify(attachments), id]
+      [name, description || '', budget || 0, progress || 0, order_num || 0, JSON.stringify(attachments), id]
     );
     return r.affectedRows > 0;
   },
