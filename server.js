@@ -283,13 +283,40 @@ app.put('/api/projects/:id', requireAdmin, uploadLimiter, upload.array('attachme
     if (!changed) return res.status(404).json({ error: 'Not found' });
     // Registra histórico com campos que mudaram
     const changes = [];
-    if (existing && payload.status && payload.status !== existing.status)
-      changes.push(`status: "${existing.status}" → "${payload.status}"`);
-    if (existing && payload.name && payload.name !== existing.name)
-      changes.push(`nome: "${existing.name}" → "${payload.name}"`);
-    if (payload.progress !== undefined && existing && Number(payload.progress) !== Number(existing.progress))
-      changes.push(`progresso: ${existing.progress}% → ${payload.progress}%`);
-    const detail = changes.length ? changes.join('; ') : 'Dados atualizados';
+    if (existing) {
+      const fmtDate = v => v ? new Date(v).toLocaleDateString('pt-BR') : '—';
+      const fmtBudget = v => v != null ? `R$ ${Number(v).toLocaleString('pt-BR')}` : '—';
+      const str = v => (v == null || v === '') ? '—' : String(v).trim();
+
+      const fields = [
+        { key: 'name',                 label: 'Nome',                  fmt: str },
+        { key: 'status',               label: 'Status',                fmt: str },
+        { key: 'progress',             label: 'Progresso',             fmt: v => `${v ?? 0}%` },
+        { key: 'description',          label: 'Descrição',             fmt: v => v ? `"${String(v).substring(0,60)}${String(v).length>60?'…':''}"` : '—' },
+        { key: 'client',               label: 'Responsável/Cliente',   fmt: str },
+        { key: 'budget',               label: 'Orçamento',             fmt: fmtBudget },
+        { key: 'currency',             label: 'Moeda',                 fmt: str },
+        { key: 'start_date',           label: 'Data início',           fmt: fmtDate },
+        { key: 'end_date',             label: 'Data fim',              fmt: fmtDate },
+        { key: 'inscription_start',    label: 'Inscrição início',      fmt: fmtDate },
+        { key: 'inscription_end',      label: 'Inscrição fim',         fmt: fmtDate },
+        { key: 'inscription_response', label: 'Resposta inscrição',    fmt: fmtDate },
+        { key: 'project_start',        label: 'Projeto início',        fmt: fmtDate },
+        { key: 'project_end',          label: 'Projeto fim',           fmt: fmtDate },
+        { key: 'edital_name',          label: 'Nome do edital',        fmt: str },
+        { key: 'edital_url',           label: 'URL do edital',         fmt: str },
+      ];
+
+      for (const f of fields) {
+        const oldVal = existing[f.key];
+        const newVal = payload[f.key];
+        if (newVal === undefined) continue; // campo não enviado
+        const oldStr = f.fmt(oldVal);
+        const newStr = f.fmt(newVal);
+        if (oldStr !== newStr) changes.push(`${f.label}: ${oldStr} → ${newStr}`);
+      }
+    }
+    const detail = changes.length ? changes.join(' | ') : 'Dados atualizados';
     await db.addHistory(id, req.authUser, 'editou', detail);
     res.json({ ok: true });
   } catch (err) {

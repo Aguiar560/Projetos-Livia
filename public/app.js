@@ -1546,15 +1546,28 @@ async function loadHistory(projectId) {
       return;
     }
     const actionColors = { criou: 'var(--realizado)', editou: 'var(--andamento)', excluiu: 'var(--recusado)', comentou: 'var(--editais)' };
-    container.innerHTML = list.map(h => `
+    container.innerHTML = list.map(h => {
+      // Formata o detail: se contém " | " quebra em linhas separadas
+      let detailHtml = '';
+      if (h.detail) {
+        const parts = h.detail.split(' | ');
+        if (parts.length > 1) {
+          detailHtml = `<ul style="margin:4px 0 0 0;padding-left:14px;list-style:disc">${
+            parts.map(p => `<li style="color:var(--text2);font-size:.8rem">${esc(p)}</li>`).join('')
+          }</ul>`;
+        } else {
+          detailHtml = ` — <span style="color:var(--text2)">${esc(h.detail)}</span>`;
+        }
+      }
+      return `
       <div class="history-item">
         <div class="history-dot" style="background:${actionColors[h.action] || 'var(--accent)'}"></div>
-        <div class="history-text">
-          <strong>${esc(h.author)}</strong> ${esc(h.action)}
-          ${h.detail ? ` — <span style="color:var(--text2)">${esc(h.detail)}</span>` : ''}
+        <div class="history-text" style="flex:1">
+          <strong>${esc(h.author)}</strong> ${esc(h.action)}${detailHtml}
         </div>
         <span class="history-time">${new Date(h.created_at).toLocaleString('pt-BR')}</span>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   } catch { container.innerHTML = '<span class="detail-empty">Erro ao carregar histórico.</span>'; }
 }
 
