@@ -1158,16 +1158,19 @@ async function saveEditPhase(phaseId, projectId, currency) {
     description: document.getElementById(`eph-desc-${phaseId}`).value,
     budget: document.getElementById(`eph-budget-${phaseId}`).value || 0,
     progress: document.getElementById(`eph-progress-${phaseId}`).value || 0,
-    order_num: document.getElementById(`eph-order-${phaseId}`).value || 0
   };
   try {
     const fd = new FormData();
     fd.append('payload', JSON.stringify(data));
-    await fetch(`/api/projects/${projectId}/phases/${phaseId}`, { method: 'PUT', body: fd, headers: authHeader() });
+    const res = await fetch(`/api/projects/${projectId}/phases/${phaseId}`, { method: 'PUT', body: fd, headers: authHeader() });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || `HTTP ${res.status}`);
+    }
     const proj = allProjects.find(x => x.id === projectId);
     await loadPhases(projectId, Number(proj?.budget) || 0, proj?.currency || 'BRL');
     showToast('Item atualizado!', 'success');
-  } catch { showToast('Erro ao salvar item', 'error'); }
+  } catch(e) { showToast('Erro ao salvar item: ' + e.message, 'error'); }
 }
 
 async function uploadPhaseAttachments(phaseId, projectId) {
