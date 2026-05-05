@@ -8,11 +8,13 @@ Sistema web completo para gerenciamento de projetos, desenvolvido em **Node.js +
 
 - **Cadastro de projetos** com nome, descrição, cliente, orçamento, datas e status
 - **5 status disponíveis:** Cadastrado, Editais Abertos, Em andamento, Realizado, Recusado
-- **Fases por projeto** com progresso individual e orçamento por fase
-- **Anexos** por fase (PDF, Word, Excel, imagens, ZIP, etc.)
+- **Orçamento por projeto** — itens de orçamento com progresso individual, etapas e valor por etapa
+- **Etapas por item de orçamento** — total de etapas, etapas realizadas, valor por etapa (igual ou livre)
+- **Progresso automático** calculado pela proporção de etapas realizadas
+- **Anexos** por item de orçamento (PDF, Word, Excel, imagens, ZIP, etc.)
 - **Instituições parceiras** vinculadas a cada projeto
 - **URL do edital** por projeto
-- **Progresso geral** calculado automaticamente pela média das fases
+- **Progresso geral** calculado automaticamente pela média dos itens de orçamento
 - **Agenda mensal** com visualização de datas por projeto (início/fim de inscrição, início/fim do projeto)
 - **Filtros** por status na sidebar
 - **Busca** por nome de projeto
@@ -20,6 +22,9 @@ Sistema web completo para gerenciamento de projetos, desenvolvido em **Node.js +
 - **Tela de login** customizada (sem popup nativo do navegador)
 - **Badge de perfil** na topbar com nome do usuário
 - **Interface responsiva** — funciona em desktop e celular
+- **Seções recolhíveis** — "Orçamento" e "Histórico de Alterações" minimizáveis ao clicar no título
+- **Resumo no título do Orçamento** — exibe `(utilizado / total)` em tempo real; vermelho se ultrapassar o limite
+- **Histórico detalhado** de alterações — rastreia 16 campos com valores antes → depois
 
 ---
 
@@ -42,6 +47,7 @@ Sistema web completo para gerenciamento de projetos, desenvolvido em **Node.js +
 - **MySQL** (Hostinger) — conexão via pool `mysql2/promise`
 - Tabelas criadas automaticamente no primeiro acesso (`db.init()`)
 - Campo `edital_url` adicionado via `ALTER TABLE` automático se não existir
+- Colunas de etapas adicionadas automaticamente: `steps_total`, `steps_done`, `steps_equal`, `steps_value`
 
 ---
 
@@ -111,7 +117,24 @@ npm run test:perf         # apenas testes de desempenho
 
 ---
 
-## 🛠️ Tecnologias
+## � Changelog
+
+### 05/05/2026
+- ✅ Seção "Fases do Projeto" renomeada para **"Orçamento"** (itens → "Itens de Orçamento")
+- ✅ **Etapas por item de orçamento** — campos `steps_total`, `steps_done`, `steps_equal`, `steps_value` no banco e UI
+- ✅ Progresso calculado automaticamente pela proporção de etapas realizadas
+- ✅ Seção **Orçamento recolhível** ao clicar no título (igual ao Histórico de Alterações)
+- ✅ **Resumo financeiro no título**: exibe `(utilizado / total)` em tempo real; vermelho se ultrapassar
+- ✅ Histórico detalhado rastreia 16 campos com valores antes → depois
+- ✅ Correção: bug `saveEditPhase` que causava falha silenciosa ao editar item
+- ✅ Correção: perda de dados ao reordenar itens (`updatePhase` preserva campos não enviados)
+- ✅ Correção: rate limit de upload aplicado apenas quando há arquivos reais
+- ✅ Correção: CSP atualizado (`script-src-attr`, `frame-src blob:`, `connect-src jsdelivr`)
+- ✅ Service Worker v2 — `app.js` e `index.html` sempre via rede (sem cache)
+
+---
+
+## �🛠️ Tecnologias
 
 | Camada | Tecnologia |
 |---|---|
@@ -134,7 +157,8 @@ npm run test:perf         # apenas testes de desempenho
 ├── db.js              # Camada de acesso ao banco MySQL
 ├── public/
 │   ├── index.html     # Frontend completo (HTML + CSS)
-│   └── app.js         # Lógica do frontend (Vanilla JS)
+│   ├── app.js         # Lógica do frontend (Vanilla JS)
+│   └── service-worker.js  # PWA cache (v2 — app.js sempre via rede)
 ├── uploads/           # Arquivos enviados (ignorado no git)
 ├── tests/
 │   ├── unit/          # Testes unitários
