@@ -1026,12 +1026,10 @@ function renderPhases(container, list, projectId, totalBudget, currency) {
             <div><span class="phase-form-label">Total de etapas</span><input id="eph-stotal-${ph.id}" type="number" min="0" value="${ph.steps_total || 0}" /></div>
             <div><span class="phase-form-label">Etapas realizadas</span><input id="eph-sdone-${ph.id}" type="number" min="0" value="${ph.steps_done || 0}" /></div>
           </div>
-          <div class="phase-form-row" style="align-items:center">
-            <div style="display:flex;align-items:center;gap:6px">
-              <input type="checkbox" id="eph-sequal-${ph.id}" ${ph.steps_equal !== 0 ? 'checked' : ''} style="accent-color:var(--accent)" />
-              <span class="phase-form-label" style="margin:0">Valor igual por etapa</span>
-            </div>
-            <div><span class="phase-form-label">Valor por etapa (R$)</span><input id="eph-svalue-${ph.id}" type="number" min="0" step="0.01" value="${ph.steps_value || 0}" /></div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:2px">
+            <input type="checkbox" id="eph-sequal-${ph.id}" ${ph.steps_equal !== 0 ? 'checked' : ''} style="accent-color:var(--accent);width:14px;height:14px;cursor:pointer;flex-shrink:0" />
+            <span class="phase-form-label" style="margin:0">Valor igual por etapa</span>
+            <input id="eph-svalue-${ph.id}" type="number" min="0" step="0.01" value="${ph.steps_value || 0}" class="phase-steps-input" style="width:110px;margin-left:4px" />
           </div>
           <div class="phase-form-actions">
             <button class="btn-sm ghost" onclick="document.getElementById('phase-edit-form-${ph.id}').style.display='none'">Cancelar</button>
