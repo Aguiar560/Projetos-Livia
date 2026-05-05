@@ -741,7 +741,7 @@ async function openProject(id) {
       <!-- Comments -->
       <div class="detail-section full" id="section-comments">
         <div class="detail-section-title" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="toggleSection('wrap-comments','icon-comments')">
-          <span>💬 Comentários</span><span id="icon-comments" style="font-size:.8rem">▲</span>
+          <span>Comentários</span><span id="icon-comments" style="font-size:.8rem">▲</span>
         </div>
         <div id="wrap-comments">
         <div class="comment-list" id="comments-container">
@@ -757,7 +757,7 @@ async function openProject(id) {
       <!-- History -->
       <div class="detail-section full" id="section-history">
         <div class="detail-section-title" style="cursor:pointer" onclick="toggleHistory()">
-          🕓 Histórico de Alterações
+          Histórico de Alterações
           <span id="history-toggle-icon" style="margin-left:auto;font-size:.8rem">▼</span>
         </div>
         <div id="history-container" style="display:none">
@@ -1825,7 +1825,7 @@ async function openPreview(url, name, downloadUrl) {
   dlEl.download = name;
 
   // Mostra spinner enquanto carrega
-  content.innerHTML = `<div style="color:var(--text2);font-size:1.1rem">⏳ Carregando...</div>`;
+  content.innerHTML = `<div style="color:var(--text2);font-size:1.1rem">Carregando...</div>`;
   document.getElementById('previewOverlay').classList.add('open');
 
   const imgExts = ['jpg','jpeg','png','gif','webp','svg','bmp'];
