@@ -330,6 +330,13 @@
     .dash-kpi-label{font-size:.72rem;color:var(--text2);margin-top:4px}
     @media(max-width:768px){.dash-grid{grid-template-columns:1fr}.dash-card.full{grid-column:1}}
 
+    /* Paginação */
+    .pagination{display:flex;align-items:center;justify-content:center;gap:12px;padding:20px 0;grid-column:1/-1}
+    .page-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 16px;cursor:pointer;font-size:.85rem;transition:background .2s}
+    .page-btn:hover:not(:disabled){background:var(--accent);color:#fff}
+    .page-btn:disabled{opacity:.35;cursor:not-allowed}
+    .page-info{font-size:.85rem;color:var(--text);white-space:nowrap}
+
     /* ── COMMENTS ─────────────────────────────────────────────── */
     .comment-list{display:flex;flex-direction:column;gap:10px;margin-bottom:14px;max-height:320px;overflow-y:auto}
     .comment-item{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
@@ -602,6 +609,11 @@
     <button class="sidebar-btn" id="agenda-sidebar-btn" onclick="openAgenda();closeSidebar()">
       📅 Agenda
     </button>
+    <div class="sidebar-label" style="margin-top:12px">Sistema</div>
+    <button class="sidebar-btn" id="backup-btn" onclick="doBackup()" title="Baixar backup SQL dos projetos">
+      💾 Backup
+    </button>
+    <div id="sidebar-version" style="font-size:.7rem;color:var(--text2);text-align:center;margin-top:auto;padding-top:16px"></div>
   </aside>
 
   <!-- MAIN -->
@@ -612,7 +624,7 @@
       <div class="main-header">
         <h1 id="page-title">Todos os Projetos</h1>
         <div class="search-wrap">
-          <input class="search-input" type="text" id="searchInput" placeholder="🔍 Buscar projetos..." oninput="renderList()">
+          <input class="search-input" type="text" id="searchInput" placeholder="🔍 Buscar projetos..." oninput="currentPage=1;renderList()">
         </div>
       </div>
       <div class="stats">
@@ -816,6 +828,6 @@
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<script src="/app.js?v=20260505d"></script>
+<script src="/app.js?v=20260505e"></script>
 </body>
 </html>

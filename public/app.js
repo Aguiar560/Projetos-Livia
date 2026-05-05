@@ -253,6 +253,8 @@ function dateVal(val) {
 let allProjects = [];
 let currentFilter = '';
 let editingId = null;
+let currentPage = 1;
+const PAGE_SIZE = 12;
 
 // ── API helpers ─────────────────────────────────────────────────────────────
 function authHeader() {
@@ -286,6 +288,13 @@ async function load() {
       if (me.user) sessionStorage.setItem('user', me.user);
     } catch(e) { /* ignora se falhar, usa o que tem no sessionStorage */ }
 
+    // Carrega versão e exibe na sidebar
+    try {
+      const vr = await api('/api/version');
+      const vEl = document.getElementById('sidebar-version');
+      if (vEl && vr.version) vEl.textContent = `v${vr.version}`;
+    } catch(e) {}
+
     allProjects = await api('/api/projects');
     updateStats();
     renderList();
@@ -313,9 +322,23 @@ async function load() {
       iconEl.textContent = '';
       badgeEl.style.display = 'flex';
     }
+    // Esconde botão de backup para viewers
+    const backupBtn = document.getElementById('backup-btn');
+    if (backupBtn && !isAdmin()) backupBtn.style.display = 'none';
   } catch (e) {
     showToast('Erro ao carregar projetos', 'error');
   }
+}
+
+// ── Backup ────────────────────────────────────────────────────────────────────
+function doBackup() {
+  const a = document.createElement('a');
+  a.href = '/api/backup';
+  a.download = '';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  showToast('Backup iniciado!', 'success');
 }
 
 // ── Stats ───────────────────────────────────────────────────────────────────
@@ -338,6 +361,7 @@ function updateStats() {
 // ── Filter ───────────────────────────────────────────────────────────────────
 function setFilter(btn, filter) {
   currentFilter = filter;
+  currentPage = 1;
   document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   const titles = { '': 'Todos os Projetos', 'realizado': 'Projetos Realizados', 'em andamento': 'Em Andamento', 'cadastrado': 'Projetos Cadastrados', 'editais abertos': 'Editais Abertos', 'recusado': 'Projetos Recusados' };
@@ -365,6 +389,11 @@ function renderList() {
     return matchFilter && matchSearch;
   });
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  if (currentPage > totalPages) currentPage = totalPages;
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const paginated = filtered.slice(start, start + PAGE_SIZE);
+
   const container = document.getElementById('list');
 
   if (filtered.length === 0) {
@@ -372,10 +401,11 @@ function renderList() {
       <svg width="64" height="64" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" stroke-width="1.5"/><path d="M8 12h8M8 8h5M8 16h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       <p>Nenhum projeto encontrado</p>
     </div>`;
+    renderPagination(0, 1);
     return;
   }
 
-  container.innerHTML = filtered.map((p, idx) => {
+  container.innerHTML = paginated.map((p, idx) => {
     const slug = p.status === 'em andamento' ? 'andamento' : p.status === 'editais abertos' ? 'editais' : p.status;
     const progress = Number(p.progress) || 0;
     const progressColor = progress >= 80 ? 'var(--realizado)' : progress >= 40 ? 'var(--andamento)' : 'var(--cadastrado)';
@@ -411,6 +441,30 @@ function renderList() {
       </div>
     </div>`;
   }).join('');
+
+  renderPagination(filtered.length, totalPages);
+}
+
+function renderPagination(total, totalPages) {
+  let el = document.getElementById('pagination');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'pagination';
+    document.getElementById('list').insertAdjacentElement('afterend', el);
+  }
+  if (totalPages <= 1) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <div class="pagination">
+      <button class="page-btn" onclick="goPage(${currentPage-1})" ${currentPage===1?'disabled':''}>‹ Anterior</button>
+      <span class="page-info">Página ${currentPage} de ${totalPages} <span style="color:var(--text2);font-size:.8rem">(${total} projetos)</span></span>
+      <button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage===totalPages?'disabled':''}>Próxima ›</button>
+    </div>`;
+}
+
+function goPage(n) {
+  currentPage = n;
+  renderList();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function esc(str) {
@@ -985,6 +1039,44 @@ function initPhaseDragDrop(projectId, currency) {
     item.addEventListener('drop', e => {
       e.preventDefault();
       item.classList.remove('drag-over');
+    });
+  });
+
+  // ── Swipe para deletar no mobile ──────────────────────────────────────────
+  if (!isAdmin()) return; // só admin pode deletar
+  list.querySelectorAll('.phase-item').forEach(item => {
+    let touchStartX = 0;
+    let touchDeltaX = 0;
+    const SWIPE_THRESHOLD = 80;
+
+    item.addEventListener('touchstart', e => {
+      touchStartX = e.touches[0].clientX;
+      touchDeltaX = 0;
+      item.style.transition = 'none';
+    }, { passive: true });
+
+    item.addEventListener('touchmove', e => {
+      touchDeltaX = e.touches[0].clientX - touchStartX;
+      if (touchDeltaX < 0) {
+        // Só arrasta para esquerda
+        item.style.transform = `translateX(${Math.max(touchDeltaX, -SWIPE_THRESHOLD - 20)}px)`;
+        // Mostra fundo vermelho
+        item.style.setProperty('--swipe-bg', 'rgba(255,92,110,.15)');
+      }
+    }, { passive: true });
+
+    item.addEventListener('touchend', () => {
+      item.style.transition = 'transform .25s ease';
+      if (touchDeltaX < -SWIPE_THRESHOLD) {
+        // Disparou o swipe — confirma exclusão
+        item.style.transform = `translateX(-100%)`;
+        const phaseId   = Number(item.dataset.phaseId);
+        const projectId = Number(item.dataset.projectId);
+        const currency  = item.dataset.currency;
+        setTimeout(() => deletePhase(phaseId, projectId, currency), 200);
+      } else {
+        item.style.transform = 'translateX(0)';
+      }
     });
   });
 }

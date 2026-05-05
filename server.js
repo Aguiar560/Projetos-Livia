@@ -1,5 +1,6 @@
 require('dotenv').config();
 const path    = require('path');
+const fs      = require('fs');
 const express = require('express');
 const multer  = require('multer');
 const helmet  = require('helmet');
@@ -9,6 +10,16 @@ const hpp     = require('hpp');
 const app     = express();
 const PORT    = process.env.PORT || 3000;
 const db      = require('./db');
+const PKG_VERSION = require('./package.json').version;
+
+// ── 0. Access Log ─────────────────────────────────────────────────────────────
+const LOG_DIR  = path.join(__dirname, 'logs');
+const LOG_FILE = path.join(LOG_DIR, 'access.log');
+if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR, { recursive: true });
+
+function writeLog(line) {
+  try { fs.appendFileSync(LOG_FILE, line + '\n'); } catch {}
+}
 
 // ── 1. Security Headers (Helmet) ─────────────────────────────────────────────
 app.use(helmet({
@@ -99,6 +110,15 @@ function requireAdmin(req, res, next) {
 
 app.use('/api', requireAuth);
 
+// Log de acesso após auth (para registrar usuário resolvido)
+app.use('/api', (req, res, next) => {
+  const ip   = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '-';
+  const user = req.authUser || 'anon';
+  const line = `[${new Date().toISOString()}] ${ip} ${user} ${req.method} ${req.originalUrl}`;
+  writeLog(line);
+  next();
+});
+
 // ── 5. Body size limit ────────────────────────────────────────────────────────
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: false, limit: '1mb' }));
@@ -184,6 +204,11 @@ app.get('/api/me', (req, res) => {
   const user = req.authUser || null;
   const role = req.authRole || (user === ADMIN_USER ? 'admin' : 'viewer');
   res.json({ user, role });
+});
+
+// Versão da aplicação
+app.get('/api/version', (req, res) => {
+  res.json({ version: PKG_VERSION });
 });
 
 app.get('/api/projects', async (req, res) => {
@@ -432,6 +457,39 @@ app.get('/api/projects/:id/history', async (req, res) => {
   if (!id) return res.status(400).json({ error: 'ID inválido' });
   try { res.json(await db.getHistory(id)); }
   catch { res.status(500).json({ error: 'Erro interno' }); }
+});
+
+// ── Backup ────────────────────────────────────────────────────────────────────
+app.get('/api/backup', requireAdmin, async (req, res) => {
+  try {
+    const projects = await db.getAllProjects();
+    const lines = [];
+    const ts = new Date().toISOString();
+    lines.push(`-- Backup gerado em ${ts}`);
+    lines.push(`-- Total de projetos: ${projects.length}`);
+    lines.push('');
+
+    for (const p of projects) {
+      const name    = (p.name    || '').replace(/'/g, "''");
+      const desc    = (p.description || '').replace(/'/g, "''");
+      const client  = (p.client  || '').replace(/'/g, "''");
+      const status  = (p.status  || '').replace(/'/g, "''");
+      const tags    = JSON.stringify(Array.isArray(p.tags) ? p.tags : []).replace(/'/g, "''");
+      lines.push(`INSERT INTO projects (id, name, description, status, client, budget, currency, progress, inscription_start, inscription_end, inscription_response, project_start, project_end, tags, created_at) VALUES (`);
+      lines.push(`  ${p.id}, '${name}', '${desc}', '${status}', '${client}', ${p.budget||0}, '${p.currency||'BRL'}', ${p.progress||0},`);
+      lines.push(`  ${p.inscription_start ? `'${p.inscription_start}'` : 'NULL'}, ${p.inscription_end ? `'${p.inscription_end}'` : 'NULL'}, ${p.inscription_response ? `'${p.inscription_response}'` : 'NULL'},`);
+      lines.push(`  ${p.project_start ? `'${p.project_start}'` : 'NULL'}, ${p.project_end ? `'${p.project_end}'` : 'NULL'}, '${tags}', NOW()`);
+      lines.push(`);`);
+    }
+
+    const filename = `backup_${ts.substring(0,10)}.sql`;
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.send(lines.join('\n'));
+  } catch (err) {
+    console.error('[GET /api/backup]', err.message);
+    res.status(500).json({ error: 'Erro ao gerar backup' });
+  }
 });
 
 // ── Error handler global ──────────────────────────────────────────────────────
