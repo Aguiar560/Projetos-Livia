@@ -125,6 +125,8 @@ async function init(){
     try { await conn.query('ALTER TABLE project_phases ADD COLUMN steps TEXT'); } catch(e) {}
     try { await conn.query('ALTER TABLE project_phases ADD COLUMN steps_total INT DEFAULT 0'); } catch(e) {}
     try { await conn.query('ALTER TABLE project_phases ADD COLUMN steps_done INT DEFAULT 0'); } catch(e) {}
+    try { await conn.query('ALTER TABLE project_phases ADD COLUMN steps_equal TINYINT DEFAULT 1'); } catch(e) {}
+    try { await conn.query('ALTER TABLE project_phases ADD COLUMN steps_value DECIMAL(12,2) DEFAULT 0'); } catch(e) {}
 
     // comments table
     await conn.query(`
@@ -296,9 +298,11 @@ module.exports = {
     const steps       = data.steps       !== undefined ? data.steps            : (existing.steps || []);
     const steps_total = data.steps_total !== undefined ? Number(data.steps_total) : (existing.steps_total || 0);
     const steps_done  = data.steps_done  !== undefined ? Number(data.steps_done)  : (existing.steps_done  || 0);
+    const steps_equal = data.steps_equal !== undefined ? Number(data.steps_equal) : (existing.steps_equal ?? 1);
+    const steps_value = data.steps_value !== undefined ? Number(data.steps_value) : (existing.steps_value || 0);
     const [r] = await POOL.query(
-      'UPDATE project_phases SET name=?, description=?, budget=?, progress=?, order_num=?, attachments=?, steps=?, steps_total=?, steps_done=? WHERE id=?',
-      [name, description || '', budget || 0, progress || 0, order_num || 0, JSON.stringify(attachments), JSON.stringify(steps), steps_total, steps_done, id]
+      'UPDATE project_phases SET name=?, description=?, budget=?, progress=?, order_num=?, attachments=?, steps=?, steps_total=?, steps_done=?, steps_equal=?, steps_value=? WHERE id=?',
+      [name, description || '', budget || 0, progress || 0, order_num || 0, JSON.stringify(attachments), JSON.stringify(steps), steps_total, steps_done, steps_equal, steps_value, id]
     );
     return r.affectedRows > 0;
   },

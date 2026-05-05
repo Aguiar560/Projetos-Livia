@@ -983,20 +983,31 @@ function renderPhases(container, list, projectId, totalBudget, currency) {
 
         <div class="phase-steps-section">
           ${(() => {
-            const total    = Number(ph.steps_total) || 0;
-            const done     = Math.min(Number(ph.steps_done) || 0, total);
-            const budgetUnit = total > 0 ? (Number(ph.budget) || 0) / total : 0;
-            const remaining  = (total - done) * budgetUnit;
+            const total      = Number(ph.steps_total) || 0;
+            const done       = Math.min(Number(ph.steps_done) || 0, total);
+            const isEqual    = ph.steps_equal !== 0; // default true
+            const stepVal    = Number(ph.steps_value) || 0;
+            const budgetUnit = isEqual ? (total > 0 ? (Number(ph.budget) || 0) / total : 0) : stepVal;
+            const spent      = done * budgetUnit;
+            const remaining  = Math.max(0, (Number(ph.budget) || 0) - spent);
             return `<div class="phase-steps-nums">
               <span>Etapas: <strong>${done}/${total}</strong></span>
               <span>Orçamento restante: <strong>${formatBudget(remaining, currency)}</strong></span>
-              <div style="display:flex;gap:5px;align-items:center">
+              <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:4px">
                 <span style="font-size:.75rem;color:var(--text2)">Realizadas:</span>
                 <input type="number" class="phase-steps-input" min="0" max="${total}" value="${done}"
                   onchange="updateStepsDone(${ph.id},${projectId},this.value,${total})" style="width:50px" />
                 <span style="font-size:.75rem;color:var(--text2)">/ Total:</span>
                 <input type="number" class="phase-steps-input" min="0" value="${total}"
                   onchange="updateStepsTotal(${ph.id},${projectId},${done},this.value)" style="width:50px" />
+                <label style="display:flex;align-items:center;gap:4px;font-size:.75rem;color:var(--text2);cursor:pointer" title="Valor igual por etapa">
+                  <input type="checkbox" ${isEqual ? 'checked' : ''} style="accent-color:var(--accent);cursor:pointer"
+                    onchange="updateStepsEqual(${ph.id},${projectId},this.checked)" />
+                  Valor igual
+                </label>
+                ${!isEqual ? `<span style="font-size:.75rem;color:var(--text2)">Valor/etapa:</span>
+                <input type="number" class="phase-steps-input" min="0" step="0.01" value="${stepVal}"
+                  onchange="updateStepsValue(${ph.id},${projectId},this.value)" style="width:80px" />` : ''}
               </div>
             </div>`;
           })()}
@@ -1195,22 +1206,31 @@ async function saveEditPhase(phaseId, projectId, currency) {
 }
 
 // ── Etapas de Fase (numérico simples) ────────────────────────────────────────
-async function _saveStepsNum(phaseId, projectId, total, done) {
-  total = Math.max(0, Number(total) || 0);
-  done  = Math.min(Math.max(0, Number(done) || 0), total);
-  const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+async function _saveStepsNum(phaseId, projectId, payload) {
   const fd = new FormData();
-  fd.append('payload', JSON.stringify({ steps_total: total, steps_done: done, progress }));
+  fd.append('payload', JSON.stringify(payload));
   const res = await fetch(`/api/projects/${projectId}/phases/${phaseId}`, { method: 'PUT', body: fd, headers: authHeader() });
   if (!res.ok) { showToast('Erro ao salvar etapas', 'error'); return; }
   const proj = allProjects.find(x => x.id === projectId);
   await loadPhases(projectId, Number(proj?.budget) || 0, proj?.currency || 'BRL');
 }
 async function updateStepsDone(phaseId, projectId, done, total) {
-  await _saveStepsNum(phaseId, projectId, total, done);
+  total = Math.max(0, Number(total) || 0);
+  done  = Math.min(Math.max(0, Number(done) || 0), total);
+  const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+  await _saveStepsNum(phaseId, projectId, { steps_done: done, steps_total: total, progress });
 }
 async function updateStepsTotal(phaseId, projectId, done, total) {
-  await _saveStepsNum(phaseId, projectId, total, done);
+  total = Math.max(0, Number(total) || 0);
+  done  = Math.min(Math.max(0, Number(done) || 0), total);
+  const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+  await _saveStepsNum(phaseId, projectId, { steps_done: done, steps_total: total, progress });
+}
+async function updateStepsEqual(phaseId, projectId, isEqual) {
+  await _saveStepsNum(phaseId, projectId, { steps_equal: isEqual ? 1 : 0 });
+}
+async function updateStepsValue(phaseId, projectId, value) {
+  await _saveStepsNum(phaseId, projectId, { steps_value: Number(value) || 0 });
 }
 
 async function uploadPhaseAttachments(phaseId, projectId) {
