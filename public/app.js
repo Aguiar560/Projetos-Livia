@@ -286,14 +286,13 @@ async function load() {
     allProjects = await api('/api/projects');
     updateStats();
     renderList();
-
     // Exibe badge do usuário na topbar
     const badgeEl = document.getElementById('user-badge');
     const nameEl  = document.getElementById('user-badge-name');
     const roleEl  = document.getElementById('user-badge-role');
     const iconEl  = document.getElementById('user-badge-icon');
     const storedUser = sessionStorage.getItem('user');
-    const storedRole = userRole(); // lê o valor já atualizado acima
+    const storedRole = userRole();
     if (badgeEl && storedUser) {
       nameEl.textContent = storedUser;
       if (storedRole === 'admin') {
@@ -301,7 +300,12 @@ async function load() {
         roleEl.style.color = 'var(--warn)';
         roleEl.style.display = 'inline-block';
       } else {
-        roleEl.style.display = 'none';
+        roleEl.textContent = 'Visualizador';
+        roleEl.style.color = 'var(--text2)';
+        roleEl.style.display = 'inline-block';
+        // Esconde botão "Novo Projeto" para viewers
+        const novoBtn = document.querySelector('.btn-primary[onclick="openModal()"]');
+        if (novoBtn) novoBtn.style.display = 'none';
       }
       iconEl.textContent = '';
       badgeEl.style.display = 'flex';
@@ -397,8 +401,8 @@ function renderList() {
       <div class="card-att-slot">${attCount > 0 ? `<span style="font-size:.78rem;color:var(--text2)">📎 ${attCount} anexo${attCount > 1 ? 's' : ''}</span>` : ''}</div>
       <div class="card-actions">
         <button class="btn btn-primary" style="flex:2" onclick="openProject(${p.id})">Detalhes</button>
-        <button class="btn btn-ghost" onclick="editProject(${p.id})">✏️</button>
-        <button class="btn btn-danger" onclick="deleteProject(${p.id})">🗑</button>
+        ${isAdmin() ? `<button class="btn btn-ghost" onclick="editProject(${p.id})">✏️</button>
+        <button class="btn btn-danger" onclick="deleteProject(${p.id})">🗑</button>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -624,11 +628,35 @@ async function openProject(id) {
         </div>
       </div>
 
+      <!-- Comments -->
+      <div class="detail-section full" id="section-comments">
+        <div class="detail-section-title">💬 Comentários</div>
+        <div class="comment-list" id="comments-container">
+          <span class="detail-empty">Carregando...</span>
+        </div>
+        <div class="comment-form" id="comment-form-wrap">
+          <textarea class="comment-input" id="comment-input" placeholder="Adicionar um comentário..." rows="2"></textarea>
+          <button class="btn-sm primary" onclick="addComment(${p.id})" style="align-self:flex-end;padding:9px 16px">Enviar</button>
+        </div>
+      </div>
+
+      <!-- History -->
+      <div class="detail-section full" id="section-history">
+        <div class="detail-section-title" style="cursor:pointer" onclick="toggleHistory()">
+          🕓 Histórico de Alterações
+          <span id="history-toggle-icon" style="margin-left:auto;font-size:.8rem">▼</span>
+        </div>
+        <div id="history-container" style="display:none">
+          <div class="history-list" id="history-list">
+            <span class="detail-empty">Carregando...</span>
+          </div>
+        </div>
+      </div>
+
     </div>`;
 
   document.getElementById('grid-view').style.display = 'none';
   document.getElementById('detail-view').style.display = 'block';
-  // Rola para o topo — compatível com mobile (scroll no window) e desktop (scroll no .main)
   const mainEl = document.querySelector('.main');
   if (mainEl) mainEl.scrollTop = 0;
   window.scrollTo({ top: 0, behavior: 'instant' });
@@ -636,6 +664,8 @@ async function openProject(id) {
   // Carrega dados dinâmicos
   loadInstitutions(p.id, Number(p.budget) || 0, p.currency);
   loadPhases(p.id, Number(p.budget) || 0, p.currency);
+  loadComments(p.id);
+  loadHistory(p.id);
 }
 
 function closeProject() {
@@ -1190,9 +1220,9 @@ if (_projectForm) _projectForm.addEventListener('submit', async e => {
 }); // fim addEventListener submit
 
 // ── Login ─────────────────────────────────────────────────────────────────────
-// Helper de role — retorna 'admin' ou 'comum'
+// Helper de role — retorna 'admin' ou 'viewer'
 function userRole() {
-  return sessionStorage.getItem('role') || 'comum';
+  return sessionStorage.getItem('role') || 'viewer';
 }
 function isAdmin() {
   return userRole() === 'admin';
@@ -1250,7 +1280,7 @@ async function doLogin() {
     const me = await fetch('/api/me', { headers }).then(r => r.json());
 
     sessionStorage.setItem('auth', token);
-    sessionStorage.setItem('role', me.role || 'comum');
+    sessionStorage.setItem('role', me.role || 'viewer');
     sessionStorage.setItem('user', me.user || user);
 
     document.getElementById('login-screen').classList.add('hidden');
@@ -1322,6 +1352,227 @@ function _confirmOk() {
 function _confirmCancel() {
   document.getElementById('confirmOverlay').classList.remove('open');
   if (_confirmResolve) { _confirmResolve(false); _confirmResolve = null; }
+}
+
+// ── Comments ──────────────────────────────────────────────────────────────────
+async function loadComments(projectId) {
+  const container = document.getElementById('comments-container');
+  if (!container) return;
+  try {
+    const list = await api(`/api/projects/${projectId}/comments`);
+    if (!list.length) {
+      container.innerHTML = '<span class="detail-empty">Nenhum comentário ainda.</span>';
+      return;
+    }
+    container.innerHTML = list.map(c => `
+      <div class="comment-item">
+        <div class="comment-header">
+          <span class="comment-author">👤 ${esc(c.author)}</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="comment-time">${new Date(c.created_at).toLocaleString('pt-BR')}</span>
+            ${isAdmin() ? `<button class="btn-sm danger" onclick="deleteComment(${c.id},${projectId})" style="padding:2px 8px;font-size:.7rem">✕</button>` : ''}
+          </div>
+        </div>
+        <div class="comment-body">${esc(c.body)}</div>
+      </div>`).join('');
+  } catch { container.innerHTML = '<span class="detail-empty">Erro ao carregar comentários.</span>'; }
+}
+
+async function addComment(projectId) {
+  const input = document.getElementById('comment-input');
+  const body = (input?.value || '').trim();
+  if (!body) { showToast('Digite um comentário', 'error'); return; }
+  try {
+    await api(`/api/projects/${projectId}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body })
+    });
+    input.value = '';
+    await loadComments(projectId);
+    showToast('Comentário adicionado!', 'success');
+  } catch { showToast('Erro ao enviar comentário', 'error'); }
+}
+
+async function deleteComment(commentId, projectId) {
+  if (!await confirmDialog('Remover este comentário?', '💬', 'Remover')) return;
+  try {
+    await api(`/api/projects/${projectId}/comments/${commentId}`, { method: 'DELETE' });
+    await loadComments(projectId);
+    showToast('Comentário removido', 'success');
+  } catch { showToast('Erro ao remover', 'error'); }
+}
+
+// ── History ───────────────────────────────────────────────────────────────────
+async function loadHistory(projectId) {
+  const container = document.getElementById('history-list');
+  if (!container) return;
+  try {
+    const list = await api(`/api/projects/${projectId}/history`);
+    if (!list.length) {
+      container.innerHTML = '<span class="detail-empty">Nenhum registro ainda.</span>';
+      return;
+    }
+    const actionColors = { criou: 'var(--realizado)', editou: 'var(--andamento)', excluiu: 'var(--recusado)', comentou: 'var(--editais)' };
+    container.innerHTML = list.map(h => `
+      <div class="history-item">
+        <div class="history-dot" style="background:${actionColors[h.action] || 'var(--accent)'}"></div>
+        <div class="history-text">
+          <strong>${esc(h.author)}</strong> ${esc(h.action)}
+          ${h.detail ? ` — <span style="color:var(--text2)">${esc(h.detail)}</span>` : ''}
+        </div>
+        <span class="history-time">${new Date(h.created_at).toLocaleString('pt-BR')}</span>
+      </div>`).join('');
+  } catch { container.innerHTML = '<span class="detail-empty">Erro ao carregar histórico.</span>'; }
+}
+
+function toggleHistory() {
+  const container = document.getElementById('history-container');
+  const icon = document.getElementById('history-toggle-icon');
+  if (!container) return;
+  const isHidden = container.style.display === 'none';
+  container.style.display = isHidden ? 'block' : 'none';
+  if (icon) icon.textContent = isHidden ? '▲' : '▼';
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+let _dashCharts = {};
+
+function openDashboard() {
+  document.getElementById('grid-view').style.display   = 'none';
+  document.getElementById('detail-view').style.display = 'none';
+  document.getElementById('agenda-view').style.display = 'none';
+  document.getElementById('dashboard-view').style.display = 'block';
+  document.getElementById('dashboard-sidebar-btn').classList.add('active');
+  renderDashboard();
+}
+
+function closeDashboard() {
+  document.getElementById('dashboard-view').style.display = 'none';
+  document.getElementById('grid-view').style.display = 'block';
+  document.getElementById('dashboard-sidebar-btn').classList.remove('active');
+}
+
+function renderDashboard() {
+  const STATUS_LIST = ['cadastrado','editais abertos','em andamento','realizado','recusado'];
+  const STATUS_LABELS = { cadastrado:'Cadastrado', 'editais abertos':'Editais Abertos', 'em andamento':'Em Andamento', realizado:'Realizado', recusado:'Recusado' };
+  const STATUS_COLORS = { cadastrado:'#ffb547', 'editais abertos':'#f97316', 'em andamento':'#6c63ff', realizado:'#00c9a7', recusado:'#ff5c6e' };
+  const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+  const gridColor = isDark ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.08)';
+  const textColor = isDark ? '#8b90b5' : '#6b6f8e';
+
+  // KPIs
+  const total = allProjects.length;
+  const totalBudget = allProjects.reduce((s,p) => s + (Number(p.budget) || 0), 0);
+  const avgProgress = total ? Math.round(allProjects.reduce((s,p) => s + (Number(p.progress)||0), 0) / total) : 0;
+  const kpiEl = document.getElementById('dash-kpis');
+  if (kpiEl) kpiEl.innerHTML = `
+    <div class="dash-kpi"><div class="dash-kpi-num" style="color:var(--text)">${total}</div><div class="dash-kpi-label">Total de Projetos</div></div>
+    <div class="dash-kpi"><div class="dash-kpi-num" style="color:var(--realizado)">${allProjects.filter(p=>p.status==='realizado').length}</div><div class="dash-kpi-label">Realizados</div></div>
+    <div class="dash-kpi"><div class="dash-kpi-num" style="color:var(--andamento)">${allProjects.filter(p=>p.status==='em andamento').length}</div><div class="dash-kpi-label">Em Andamento</div></div>
+    <div class="dash-kpi"><div class="dash-kpi-num" style="color:var(--accent)">${avgProgress}%</div><div class="dash-kpi-label">Progresso Médio</div></div>
+    <div class="dash-kpi"><div class="dash-kpi-num" style="color:var(--realizado);font-size:1.2rem">${formatBudget(totalBudget,'BRL')}</div><div class="dash-kpi-label">Orçamento Total</div></div>`;
+
+  Chart.defaults.color = textColor;
+  Chart.defaults.borderColor = gridColor;
+
+  // Destrói gráficos anteriores
+  Object.values(_dashCharts).forEach(c => c.destroy());
+  _dashCharts = {};
+
+  const counts = STATUS_LIST.map(s => allProjects.filter(p => p.status === s).length);
+  const budgets = STATUS_LIST.map(s => allProjects.filter(p => p.status === s).reduce((sum,p) => sum + (Number(p.budget)||0), 0));
+  const progresses = STATUS_LIST.map(s => {
+    const group = allProjects.filter(p => p.status === s);
+    return group.length ? Math.round(group.reduce((sum,p) => sum + (Number(p.progress)||0), 0) / group.length) : 0;
+  });
+  const labels = STATUS_LIST.map(s => STATUS_LABELS[s]);
+  const colors = STATUS_LIST.map(s => STATUS_COLORS[s]);
+
+  // Pizza de status
+  const ctxStatus = document.getElementById('chart-status');
+  if (ctxStatus) {
+    _dashCharts.status = new Chart(ctxStatus, {
+      type: 'doughnut',
+      data: { labels, datasets: [{ data: counts, backgroundColor: colors, borderWidth: 2, borderColor: isDark ? '#1a1d27' : '#fff' }] },
+      options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'right', labels:{ padding:14, font:{ size:11 } } } } }
+    });
+  }
+
+  // Barras de orçamento
+  const ctxBudget = document.getElementById('chart-budget');
+  if (ctxBudget) {
+    _dashCharts.budget = new Chart(ctxBudget, {
+      type: 'bar',
+      data: { labels, datasets: [{ data: budgets, backgroundColor: colors, borderRadius: 6, borderSkipped: false }] },
+      options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } },
+        scales:{ y:{ grid:{ color:gridColor }, ticks:{ callback: v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v } }, x:{ grid:{ display:false } } } }
+    });
+  }
+
+  // Barras de progresso médio
+  const ctxProg = document.getElementById('chart-progress');
+  if (ctxProg) {
+    _dashCharts.progress = new Chart(ctxProg, {
+      type: 'bar',
+      data: { labels, datasets: [{ data: progresses, backgroundColor: colors, borderRadius: 6, borderSkipped: false }] },
+      options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } },
+        scales:{ y:{ min:0, max:100, grid:{ color:gridColor }, ticks:{ callback: v => `${v}%` } }, x:{ grid:{ display:false } } } }
+    });
+  }
+}
+
+// ── Export CSV ────────────────────────────────────────────────────────────────
+function exportCSV() {
+  const q = (document.getElementById('searchInput')?.value || '').toLowerCase();
+  const list = allProjects.filter(p => {
+    const matchFilter = !currentFilter || p.status === currentFilter;
+    const matchSearch = !q || (p.name||'').toLowerCase().includes(q) || (p.client||'').toLowerCase().includes(q);
+    return matchFilter && matchSearch;
+  });
+
+  if (!list.length) { showToast('Nenhum projeto para exportar', 'error'); return; }
+
+  const headers = ['ID','Nome','Status','Cliente','Orçamento','Moeda','Progresso (%)','Início Inscrição','Fim Inscrição','Resp. Inscrição','Início Projeto','Fim Projeto','Tags'];
+  const rows = list.map(p => [
+    p.id,
+    `"${(p.name||'').replace(/"/g,'""')}"`,
+    p.status,
+    `"${(p.client||'').replace(/"/g,'""')}"`,
+    p.budget || 0,
+    p.currency || 'BRL',
+    p.progress || 0,
+    dateVal(p.inscription_start) || '',
+    dateVal(p.inscription_end) || '',
+    dateVal(p.inscription_response) || '',
+    dateVal(p.project_start) || '',
+    dateVal(p.project_end) || '',
+    `"${(Array.isArray(p.tags) ? p.tags.join(', ') : '').replace(/"/g,'""')}"`
+  ]);
+
+  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `projetos_${new Date().toISOString().substring(0,10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast(`${list.length} projetos exportados!`, 'success');
+}
+
+// ── Viewer restrictions ───────────────────────────────────────────────────────
+function applyViewerRestrictions() {
+  const role = sessionStorage.getItem('role') || 'viewer';
+  if (role === 'viewer') {
+    // Esconde botões de criar/editar/excluir
+    document.querySelectorAll('[id="novo-projeto-btn"]').forEach(el => el.style.display = 'none');
+    // Remove formulário de comentários
+    const cf = document.getElementById('comment-form-wrap');
+    if (cf) cf.style.display = 'none';
+  }
 }
 
 // ── Theme Toggle ──────────────────────────────────────────────────────────────

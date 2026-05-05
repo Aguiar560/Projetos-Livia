@@ -7,6 +7,7 @@
   <title>Projetos — Projeto Livia</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
   <style>
     :root {
       --bg: #0f1117;
@@ -316,6 +317,39 @@
     .preview-content iframe{width:100%;height:80vh;border:none;border-radius:12px}
     .preview-fallback{color:var(--text2);text-align:center;padding:40px;font-size:.9rem}
 
+    /* ── DASHBOARD ────────────────────────────────────────────── */
+    #dashboard-view{display:none}
+    .dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:20px}
+    .dash-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px}
+    .dash-card.full{grid-column:1/-1}
+    .dash-card-title{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--accent);margin-bottom:16px}
+    .dash-chart-wrap{position:relative;height:260px;display:flex;align-items:center;justify-content:center}
+    .dash-kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;margin-bottom:20px}
+    .dash-kpi{background:var(--surface2);border-radius:12px;padding:16px;text-align:center}
+    .dash-kpi-num{font-size:1.8rem;font-weight:700;line-height:1}
+    .dash-kpi-label{font-size:.72rem;color:var(--text2);margin-top:4px}
+    @media(max-width:768px){.dash-grid{grid-template-columns:1fr}.dash-card.full{grid-column:1}}
+
+    /* ── COMMENTS ─────────────────────────────────────────────── */
+    .comment-list{display:flex;flex-direction:column;gap:10px;margin-bottom:14px;max-height:320px;overflow-y:auto}
+    .comment-item{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+    .comment-header{display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .comment-author{font-size:.78rem;font-weight:700;color:var(--accent)}
+    .comment-time{font-size:.72rem;color:var(--text2)}
+    .comment-body{font-size:.88rem;color:var(--text);line-height:1.55;white-space:pre-wrap}
+    .comment-form{display:flex;gap:8px;align-items:flex-end}
+    .comment-input{flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-family:inherit;font-size:.88rem;outline:none;resize:vertical;min-height:60px}
+    .comment-input:focus{border-color:var(--accent)}
+
+    /* ── HISTORY ──────────────────────────────────────────────── */
+    .history-list{display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto}
+    .history-item{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}
+    .history-item:last-child{border-bottom:none}
+    .history-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0;margin-top:5px}
+    .history-text{flex:1;font-size:.82rem;color:var(--text2);line-height:1.4}
+    .history-text strong{color:var(--text)}
+    .history-time{font-size:.7rem;color:var(--text2);white-space:nowrap;flex-shrink:0}
+
     /* ===== AGENDA ===== */
     #agenda-view{display:none}
     .agenda-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
@@ -562,6 +596,9 @@
       <span class="sidebar-dot dot-recusado"></span> Recusados <span class="sidebar-count" id="cnt-recusado">0</span>
     </button>
     <div class="sidebar-label" style="margin-top:12px">Visualização</div>
+    <button class="sidebar-btn" id="dashboard-sidebar-btn" onclick="openDashboard();closeSidebar()">
+      📊 Dashboard
+    </button>
     <button class="sidebar-btn" id="agenda-sidebar-btn" onclick="openAgenda();closeSidebar()">
       📅 Agenda
     </button>
@@ -577,6 +614,7 @@
         <div class="search-wrap">
           <input class="search-input" type="text" id="searchInput" placeholder="🔍 Buscar projetos..." oninput="renderList()">
         </div>
+        <button class="btn btn-ghost" onclick="exportCSV()" title="Exportar lista atual para CSV" style="white-space:nowrap">⬇ Exportar CSV</button>
       </div>
       <div class="stats">
         <div class="stat-card c-all"><div class="stat-num" id="s-all">0</div><div class="stat-label">Total</div></div>
@@ -634,6 +672,30 @@
     <!-- Popup agenda -->
     <div class="agenda-overlay" id="agendaOverlay" onclick="closeAgendaPopup()"></div>
     <div class="agenda-popup" id="agendaPopup" style="display:none"></div>
+
+    <!-- DASHBOARD VIEW -->
+    <div id="dashboard-view">
+      <button class="detail-back" onclick="closeDashboard()">← Voltar para lista</button>
+      <h2 style="font-size:1.3rem;font-weight:700;margin-bottom:4px">📊 Dashboard</h2>
+      <p style="color:var(--text2);font-size:.85rem;margin-bottom:0">Visão geral de todos os projetos</p>
+
+      <div class="dash-kpi-grid" id="dash-kpis" style="margin-top:20px"></div>
+
+      <div class="dash-grid">
+        <div class="dash-card">
+          <div class="dash-card-title">Distribuição por Status</div>
+          <div class="dash-chart-wrap"><canvas id="chart-status"></canvas></div>
+        </div>
+        <div class="dash-card">
+          <div class="dash-card-title">Orçamento por Status (R$)</div>
+          <div class="dash-chart-wrap"><canvas id="chart-budget"></canvas></div>
+        </div>
+        <div class="dash-card full">
+          <div class="dash-card-title">Progresso Médio por Status (%)</div>
+          <div class="dash-chart-wrap" style="height:200px"><canvas id="chart-progress"></canvas></div>
+        </div>
+      </div>
+    </div>
 
   </main>
 </div>
@@ -755,6 +817,6 @@
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<script src="/app.js?v=20260505a"></script>
+<script src="/app.js?v=20260505b"></script>
 </body>
 </html>

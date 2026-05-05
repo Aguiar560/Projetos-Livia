@@ -15,14 +15,14 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc:     ["'self'", "'unsafe-inline'"],
-      scriptSrcAttr: ["'unsafe-inline'"],   // permite onclick="..." nos elementos HTML
+      scriptSrc:     ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+      scriptSrcAttr: ["'unsafe-inline'"],
       styleSrc:   ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc:    ["'self'", "https://fonts.gstatic.com"],
-      imgSrc:     ["'self'", "data:"],
+      imgSrc:     ["'self'", "data:", "blob:"],
       connectSrc: ["'self'"],
       objectSrc:  ["'none'"],
-      frameSrc:   ["'none'"],
+      frameSrc:   ["'self'"],
     }
   },
   crossOriginEmbedderPolicy: false
@@ -54,6 +54,8 @@ const ROLE_MAP = {};
 
 const ADMIN_USER = (process.env.ADMIN_USER || '').trim();
 const ADMIN_PASS = (process.env.ADMIN_PASS || '').trim();
+const VIEWER_USER = (process.env.VIEWER_USER || '').trim();
+const VIEWER_PASS = (process.env.VIEWER_PASS || '').trim();
 
 if (ADMIN_USER && ADMIN_PASS) {
   USER_MAP[ADMIN_USER] = ADMIN_PASS;
@@ -63,19 +65,35 @@ if (ADMIN_USER && ADMIN_PASS) {
   console.warn('[SECURITY] ADMIN_USER/ADMIN_PASS não definidos — autenticação desabilitada!');
 }
 
+if (VIEWER_USER && VIEWER_PASS) {
+  USER_MAP[VIEWER_USER] = VIEWER_PASS;
+  ROLE_MAP[VIEWER_USER] = 'viewer';
+  console.log(`[AUTH] Usuário viewer carregado: ${VIEWER_USER}`);
+}
+
 // Middleware de auth SEM challenge — não abre popup do browser, retorna 401 silencioso
-// Aplicado apenas nas rotas /api para que o frontend customizado faça o login
 function requireAuth(req, res, next) {
   if (!ADMIN_USER) return next(); // auth desabilitada
   const authHeader = req.headers['authorization'] || '';
   const base64 = authHeader.replace(/^Basic\s+/i, '');
   let ok = false;
+  let resolvedUser = null;
   try {
     const [user, pass] = Buffer.from(base64, 'base64').toString().split(':');
-    ok = user === ADMIN_USER && pass === ADMIN_PASS;
+    if (USER_MAP[user] && USER_MAP[user] === pass) {
+      ok = true;
+      resolvedUser = user;
+    }
   } catch { ok = false; }
   if (!ok) return res.status(401).json({ error: 'Não autorizado' });
-  req.authUser = ADMIN_USER;
+  req.authUser = resolvedUser;
+  req.authRole = ROLE_MAP[resolvedUser] || 'viewer';
+  next();
+}
+
+// Middleware que bloqueia viewers de operações de escrita
+function requireAdmin(req, res, next) {
+  if (req.authRole === 'viewer') return res.status(403).json({ error: 'Acesso negado — perfil somente leitura' });
   next();
 }
 
@@ -164,7 +182,7 @@ function safeJson(body) {
 // Quem sou eu? — retorna usuário e role para o frontend
 app.get('/api/me', (req, res) => {
   const user = req.authUser || null;
-  const role = user === ADMIN_USER ? 'admin' : 'comum';
+  const role = req.authRole || (user === ADMIN_USER ? 'admin' : 'viewer');
   res.json({ user, role });
 });
 
@@ -185,13 +203,14 @@ app.get('/api/projects/:id', async (req, res) => {
   } catch { res.status(500).json({ error: 'Erro interno' }); }
 });
 
-app.post('/api/projects', uploadLimiter, upload.array('attachments'), async (req, res) => {
+app.post('/api/projects', requireAdmin, uploadLimiter, upload.array('attachments'), async (req, res) => {
   try {
     const payload = safeJson(req.body.payload || req.body);
     if (!payload.name || String(payload.name).trim().length === 0)
       return res.status(400).json({ error: 'Nome é obrigatório' });
     const files = (req.files || []).map(f => ({ originalname: f.originalname, filename: f.filename }));
     const id = await db.createProject(payload, files);
+    await db.addHistory(id, req.authUser, 'criou', `Projeto "${payload.name}" criado com status "${payload.status || 'cadastrado'}"`);
     res.status(201).json({ id });
   } catch (err) {
     console.error('[POST /api/projects]', err.message);
@@ -199,14 +218,25 @@ app.post('/api/projects', uploadLimiter, upload.array('attachments'), async (req
   }
 });
 
-app.put('/api/projects/:id', uploadLimiter, upload.array('attachments'), async (req, res) => {
+app.put('/api/projects/:id', requireAdmin, uploadLimiter, upload.array('attachments'), async (req, res) => {
   const id = sanitizeId(req.params.id);
   if (!id) return res.status(400).json({ error: 'ID inválido' });
   try {
     const payload = safeJson(req.body.payload || req.body);
     const files = (req.files || []).map(f => ({ originalname: f.originalname, filename: f.filename }));
+    const existing = await db.getProjectById(id);
     const changed = await db.updateProject(id, payload, files);
     if (!changed) return res.status(404).json({ error: 'Not found' });
+    // Registra histórico com campos que mudaram
+    const changes = [];
+    if (existing && payload.status && payload.status !== existing.status)
+      changes.push(`status: "${existing.status}" → "${payload.status}"`);
+    if (existing && payload.name && payload.name !== existing.name)
+      changes.push(`nome: "${existing.name}" → "${payload.name}"`);
+    if (payload.progress !== undefined && existing && Number(payload.progress) !== Number(existing.progress))
+      changes.push(`progresso: ${existing.progress}% → ${payload.progress}%`);
+    const detail = changes.length ? changes.join('; ') : 'Dados atualizados';
+    await db.addHistory(id, req.authUser, 'editou', detail);
     res.json({ ok: true });
   } catch (err) {
     console.error('[PUT /api/projects]', err.message);
@@ -214,12 +244,14 @@ app.put('/api/projects/:id', uploadLimiter, upload.array('attachments'), async (
   }
 });
 
-app.delete('/api/projects/:id', async (req, res) => {
+app.delete('/api/projects/:id', requireAdmin, async (req, res) => {
   const id = sanitizeId(req.params.id);
   if (!id) return res.status(400).json({ error: 'ID inválido' });
   try {
+    const project = await db.getProjectById(id);
     const deleted = await db.deleteProject(id);
     if (!deleted) return res.status(404).json({ error: 'Not found' });
+    // Histórico do projeto já foi excluído em cascata — não registra mais
     res.json({ ok: true });
   } catch { res.status(500).json({ error: 'Erro interno' }); }
 });
@@ -253,7 +285,7 @@ app.get('/api/projects/:id/institutions', async (req, res) => {
   catch { res.status(500).json({ error: 'Erro interno' }); }
 });
 
-app.post('/api/projects/:id/institutions', async (req, res) => {
+app.post('/api/projects/:id/institutions', requireAdmin, async (req, res) => {
   const id = sanitizeId(req.params.id);
   if (!id) return res.status(400).json({ error: 'ID inválido' });
   if (!req.body.name || String(req.body.name).trim().length === 0)
@@ -264,7 +296,7 @@ app.post('/api/projects/:id/institutions', async (req, res) => {
   } catch(err){ res.status(400).json({ error: err.message }); }
 });
 
-app.put('/api/projects/:id/institutions/:iid', async (req, res) => {
+app.put('/api/projects/:id/institutions/:iid', requireAdmin, async (req, res) => {
   const id  = sanitizeId(req.params.id);
   const iid = sanitizeId(req.params.iid);
   if (!id || !iid) return res.status(400).json({ error: 'ID inválido' });
@@ -274,7 +306,7 @@ app.put('/api/projects/:id/institutions/:iid', async (req, res) => {
   } catch(err){ res.status(400).json({ error: err.message }); }
 });
 
-app.delete('/api/projects/:id/institutions/:iid', async (req, res) => {
+app.delete('/api/projects/:id/institutions/:iid', requireAdmin, async (req, res) => {
   const iid = sanitizeId(req.params.iid);
   if (!iid) return res.status(400).json({ error: 'ID inválido' });
   try {
@@ -291,7 +323,7 @@ app.get('/api/projects/:id/phases', async (req, res) => {
   catch { res.status(500).json({ error: 'Erro interno' }); }
 });
 
-app.post('/api/projects/:id/phases', async (req, res) => {
+app.post('/api/projects/:id/phases', requireAdmin, async (req, res) => {
   const id = sanitizeId(req.params.id);
   if (!id) return res.status(400).json({ error: 'ID inválido' });
   if (!req.body.name || String(req.body.name).trim().length === 0)
@@ -302,7 +334,7 @@ app.post('/api/projects/:id/phases', async (req, res) => {
   } catch(err){ res.status(400).json({ error: err.message }); }
 });
 
-app.put('/api/projects/:id/phases/:pid', uploadLimiter, upload.array('phase_attachments'), async (req, res) => {
+app.put('/api/projects/:id/phases/:pid', requireAdmin, uploadLimiter, upload.array('phase_attachments'), async (req, res) => {
   const id  = sanitizeId(req.params.id);
   const pid = sanitizeId(req.params.pid);
   if (!id || !pid) return res.status(400).json({ error: 'ID inválido' });
@@ -314,7 +346,7 @@ app.put('/api/projects/:id/phases/:pid', uploadLimiter, upload.array('phase_atta
   } catch(err){ res.status(400).json({ error: err.message }); }
 });
 
-app.delete('/api/projects/:id/phases/:pid', async (req, res) => {
+app.delete('/api/projects/:id/phases/:pid', requireAdmin, async (req, res) => {
   const pid = sanitizeId(req.params.pid);
   if (!pid) return res.status(400).json({ error: 'ID inválido' });
   try {
@@ -324,7 +356,7 @@ app.delete('/api/projects/:id/phases/:pid', async (req, res) => {
 });
 
 // ── Phase Attachments ─────────────────────────────────────────────────────────
-app.post('/api/projects/:id/phases/:pid/attachments', uploadLimiter, upload.array('phase_attachments'), async (req, res) => {
+app.post('/api/projects/:id/phases/:pid/attachments', requireAdmin, uploadLimiter, upload.array('phase_attachments'), async (req, res) => {
   const id  = sanitizeId(req.params.id);
   const pid = sanitizeId(req.params.pid);
   if (!id || !pid) return res.status(400).json({ error: 'ID inválido' });
@@ -355,7 +387,7 @@ app.get('/api/projects/:id/phases/:pid/attachments/:filename', async (req, res) 
   } catch(err){ res.status(500).json({ error: 'Erro interno' }); }
 });
 
-app.delete('/api/projects/:id/phases/:pid/attachments/:filename', async (req, res) => {
+app.delete('/api/projects/:id/phases/:pid/attachments/:filename', requireAdmin, async (req, res) => {
   const pid      = sanitizeId(req.params.pid);
   const filename = sanitizeFilename(req.params.filename);
   if (!pid || !filename) return res.status(400).json({ error: 'Parâmetros inválidos' });
@@ -363,6 +395,43 @@ app.delete('/api/projects/:id/phases/:pid/attachments/:filename', async (req, re
     const ok = await db.removePhaseAttachment(pid, filename);
     ok ? res.json({ ok: true }) : res.status(404).json({ error: 'Not found' });
   } catch { res.status(500).json({ error: 'Erro interno' }); }
+});
+
+// ── Comments ──────────────────────────────────────────────────────────────────
+app.get('/api/projects/:id/comments', async (req, res) => {
+  const id = sanitizeId(req.params.id);
+  if (!id) return res.status(400).json({ error: 'ID inválido' });
+  try { res.json(await db.getComments(id)); }
+  catch { res.status(500).json({ error: 'Erro interno' }); }
+});
+
+app.post('/api/projects/:id/comments', requireAdmin, async (req, res) => {
+  const id = sanitizeId(req.params.id);
+  if (!id) return res.status(400).json({ error: 'ID inválido' });
+  const body = String(req.body.body || '').trim();
+  if (!body) return res.status(400).json({ error: 'Comentário vazio' });
+  try {
+    const cid = await db.addComment(id, req.authUser, body);
+    await db.addHistory(id, req.authUser, 'comentou', body.substring(0, 100));
+    res.status(201).json({ id: cid });
+  } catch { res.status(500).json({ error: 'Erro interno' }); }
+});
+
+app.delete('/api/projects/:id/comments/:cid', requireAdmin, async (req, res) => {
+  const cid = sanitizeId(req.params.cid);
+  if (!cid) return res.status(400).json({ error: 'ID inválido' });
+  try {
+    const ok = await db.deleteComment(cid);
+    ok ? res.json({ ok: true }) : res.status(404).json({ error: 'Not found' });
+  } catch { res.status(500).json({ error: 'Erro interno' }); }
+});
+
+// ── History ───────────────────────────────────────────────────────────────────
+app.get('/api/projects/:id/history', async (req, res) => {
+  const id = sanitizeId(req.params.id);
+  if (!id) return res.status(400).json({ error: 'ID inválido' });
+  try { res.json(await db.getHistory(id)); }
+  catch { res.status(500).json({ error: 'Erro interno' }); }
 });
 
 // ── Error handler global ──────────────────────────────────────────────────────
@@ -379,9 +448,14 @@ app.use((err, req, res, next) => {
 });
 
 // initialize DB then start server
-db.init().then(()=>{
-  app.listen(PORT, '0.0.0.0', () => console.log(`Server running on http://localhost:${PORT}`));
-}).catch(err=>{
-  console.error('Failed to initialize DB', err);
-  process.exit(1);
-});
+// Exporta app para testes de integração (supertest)
+module.exports = { app, db };
+
+if (require.main === module) {
+  db.init().then(()=>{
+    app.listen(PORT, '0.0.0.0', () => console.log(`Server running on http://localhost:${PORT}`));
+  }).catch(err=>{
+    console.error('Failed to initialize DB', err);
+    process.exit(1);
+  });
+}

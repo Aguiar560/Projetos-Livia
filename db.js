@@ -121,6 +121,29 @@ async function init(){
     `);
     // add attachments column to existing phases tables
     try { await conn.query('ALTER TABLE project_phases ADD COLUMN attachments TEXT'); } catch(e) {}
+
+    // comments table
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS project_comments (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        project_id INT NOT NULL,
+        author VARCHAR(100) NOT NULL,
+        body TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // history table
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS project_history (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        project_id INT NOT NULL,
+        author VARCHAR(100) NOT NULL,
+        action VARCHAR(32) NOT NULL,
+        detail TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
   } finally {
     conn.release();
   }
@@ -271,5 +294,34 @@ module.exports = {
   async deletePhase(id){
     const [r] = await POOL.query('DELETE FROM project_phases WHERE id=?', [id]);
     return r.affectedRows > 0;
+  },
+
+  // ── Comments ────────────────────────────────────────────────────────────────
+  async getComments(projectId){
+    const [rows] = await POOL.query(
+      'SELECT * FROM project_comments WHERE project_id = ? ORDER BY created_at ASC', [projectId]);
+    return rows;
+  },
+  async addComment(projectId, author, body){
+    const [r] = await POOL.query(
+      'INSERT INTO project_comments (project_id, author, body) VALUES (?,?,?)',
+      [projectId, author, body]);
+    return r.insertId;
+  },
+  async deleteComment(id){
+    const [r] = await POOL.query('DELETE FROM project_comments WHERE id=?', [id]);
+    return r.affectedRows > 0;
+  },
+
+  // ── History ─────────────────────────────────────────────────────────────────
+  async getHistory(projectId){
+    const [rows] = await POOL.query(
+      'SELECT * FROM project_history WHERE project_id = ? ORDER BY created_at DESC LIMIT 50', [projectId]);
+    return rows;
+  },
+  async addHistory(projectId, author, action, detail){
+    await POOL.query(
+      'INSERT INTO project_history (project_id, author, action, detail) VALUES (?,?,?,?)',
+      [projectId, author, action, detail || null]);
   }
 };
