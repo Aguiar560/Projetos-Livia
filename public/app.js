@@ -532,7 +532,7 @@ async function openProject(id) {
         <div class="detail-fields">
           ${field('Cliente', esc(p.client))}
           ${field('Orçamento Total', budget, true)}
-          ${field('Moeda', p.currency === 'BRL' ? '🇧🇷 Real (R$)' : p.currency === 'USD' ? '🇺🇸 Dólar (US$)' : '🇪🇺 Euro (€)')}
+          ${field('Moeda', p.currency === 'BRL' ? 'Real (R$)' : p.currency === 'USD' ? 'Dólar (US$)' : 'Euro (€)')}
           ${field('Status', esc(p.status))}
         </div>
       </div>
@@ -987,7 +987,7 @@ async function deletePhase(phaseId, projectId) {
 }
 
 
-const RECUSADO_OPTION_HTML = '<option value="recusado">🚫 Recusado</option>';
+const RECUSADO_OPTION_HTML = '<option value="recusado">Recusado</option>';
 
 function removeRecusadoOption() {
   const sel = document.getElementById('statusSelect');
