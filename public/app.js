@@ -1588,6 +1588,10 @@ function closeDashboard() {
 }
 
 function renderDashboard() {
+  if (typeof Chart === 'undefined') {
+    console.error('Chart.js não carregado — gráficos indisponíveis');
+    return;
+  }
   const STATUS_LIST = ['cadastrado','editais abertos','em andamento','realizado','recusado'];
   const STATUS_LABELS = { cadastrado:'Cadastrado', 'editais abertos':'Editais Abertos', 'em andamento':'Em Andamento', realizado:'Realizado', recusado:'Recusado' };
   const STATUS_COLORS = { cadastrado:'#ffb547', 'editais abertos':'#f97316', 'em andamento':'#6c63ff', realizado:'#00c9a7', recusado:'#ff5c6e' };

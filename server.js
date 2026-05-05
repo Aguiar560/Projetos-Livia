@@ -32,9 +32,9 @@ app.use(helmet({
       styleSrc:   ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc:    ["'self'", "https://fonts.gstatic.com"],
       imgSrc:     ["'self'", "data:", "blob:"],
-      connectSrc: ["'self'", "https://fonts.googleapis.com", "wss:"],
+      connectSrc: ["'self'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net", "wss:"],
       objectSrc:  ["'none'"],
-      frameSrc:   ["'self'"],
+      frameSrc:   ["'self'", "blob:"],
       baseUri:    ["'self'"],
       formAction: ["'self'"],
     }
