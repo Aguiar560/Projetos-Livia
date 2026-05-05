@@ -205,6 +205,9 @@ app.put('/api/projects/:id', uploadLimiter, upload.array('attachments'), async (
 });
 
 app.delete('/api/projects/:id', async (req, res) => {
+  // Apenas admins podem excluir
+  if (ROLE_MAP[req.auth?.user] !== 'admin')
+    return res.status(403).json({ error: 'Apenas administradores podem excluir projetos.' });
   const id = sanitizeId(req.params.id);
   if (!id) return res.status(400).json({ error: 'ID inválido' });
   try {
