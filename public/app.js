@@ -342,10 +342,12 @@ function setFilter(btn, filter) {
   const titles = { '': 'Todos os Projetos', 'realizado': 'Projetos Realizados', 'em andamento': 'Em Andamento', 'cadastrado': 'Projetos Cadastrados', 'editais abertos': 'Editais Abertos', 'recusado': 'Projetos Recusados' };
   document.getElementById('page-title').textContent = titles[filter] || 'Projetos';
   // Se estiver em outra view, volta para o grid
-  document.getElementById('grid-view').style.display   = 'block';
-  document.getElementById('detail-view').style.display = 'none';
-  document.getElementById('agenda-view').style.display = 'none';
+  document.getElementById('grid-view').style.display      = 'block';
+  document.getElementById('detail-view').style.display    = 'none';
+  document.getElementById('agenda-view').style.display    = 'none';
+  document.getElementById('dashboard-view').style.display = 'none';
   document.getElementById('agenda-sidebar-btn').classList.remove('active');
+  document.getElementById('dashboard-sidebar-btn').classList.remove('active');
   renderList();
 }
 
