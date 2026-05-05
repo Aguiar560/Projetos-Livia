@@ -1171,6 +1171,28 @@ async function doLogin() {
   }
 }
 
+// ── Logout ────────────────────────────────────────────────────────────────────
+function doLogout() {
+  if (!confirm('Deseja sair do sistema?')) return;
+  sessionStorage.removeItem('auth');
+  sessionStorage.removeItem('role');
+  sessionStorage.removeItem('user');
+  // Limpa o badge
+  const badgeEl = document.getElementById('user-badge');
+  if (badgeEl) badgeEl.style.display = 'none';
+  // Limpa os dados em memória
+  allProjects = [];
+  // Volta para a tela de login
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('login-user').value = '';
+  document.getElementById('login-pass').value = '';
+  document.getElementById('login-error').classList.remove('show');
+  // Fecha qualquer view aberta
+  document.getElementById('detail-view').style.display = 'none';
+  document.getElementById('grid-view').style.display = 'block';
+  setTimeout(() => document.getElementById('login-user').focus(), 100);
+}
+
 // ── Toast ─────────────────────────────────────────────────────────────────────
 function showToast(msg, type = 'success') {
   const t = document.getElementById('toast');
