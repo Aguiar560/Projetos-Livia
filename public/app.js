@@ -580,7 +580,10 @@ async function openProject(id) {
     <div class="detail-body">
 
       <div class="detail-section full">
-        <div class="detail-section-title">Informações do Edital</div>
+        <div class="detail-section-title" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="toggleSection('wrap-edital','icon-edital')">
+          <span>Informações do Edital</span><span id="icon-edital" style="font-size:.8rem">▲</span>
+        </div>
+        <div id="wrap-edital">
         <div class="detail-fields">
           <div class="detail-field wide">
             <span class="detail-label">Nome do Edital</span>
@@ -605,26 +608,38 @@ async function openProject(id) {
             </a>
           </div>
         </div>
+        </div>
       </div>
 
       ${p.description ? `
       <div class="detail-section full">
-        <div class="detail-section-title">Descrição</div>
+        <div class="detail-section-title" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="toggleSection('wrap-desc','icon-desc')">
+          <span>Descrição</span><span id="icon-desc" style="font-size:.8rem">▲</span>
+        </div>
+        <div id="wrap-desc">
         <div class="detail-desc">${esc(p.description)}</div>
+        </div>
       </div>` : ''}
 
       <div class="detail-section">
-        <div class="detail-section-title">Informações Gerais</div>
+        <div class="detail-section-title" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="toggleSection('wrap-geral','icon-geral')">
+          <span>Informações Gerais</span><span id="icon-geral" style="font-size:.8rem">▲</span>
+        </div>
+        <div id="wrap-geral">
         <div class="detail-fields">
           ${field('Cliente', esc(p.client))}
           ${field('Orçamento Total', budget, true)}
           ${field('Moeda', p.currency === 'BRL' ? 'Real (R$)' : p.currency === 'USD' ? 'Dólar (US$)' : 'Euro (€)')}
           ${field('Status', esc(p.status))}
         </div>
+        </div>
       </div>
 
       <div class="detail-section">
-        <div class="detail-section-title">Progresso Geral</div>
+        <div class="detail-section-title" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="toggleSection('wrap-progresso','icon-progresso')">
+          <span>Progresso Geral</span><span id="icon-progresso" style="font-size:.8rem">▲</span>
+        </div>
+        <div id="wrap-progresso">
         <div class="detail-progress-row">
           <span class="detail-label">Conclusão</span>
           <span style="font-weight:700;color:${progressColor};font-size:1.4rem">${progress}%</span>
@@ -632,36 +647,50 @@ async function openProject(id) {
         <div class="detail-progress-bar">
           <div class="detail-progress-fill" style="width:${progress}%;background:${progressColor}"></div>
         </div>
+        </div>
       </div>
 
       <div class="detail-section">
-        <div class="detail-section-title">Inscrição</div>
+        <div class="detail-section-title" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="toggleSection('wrap-inscricao','icon-inscricao')">
+          <span>Inscrição</span><span id="icon-inscricao" style="font-size:.8rem">▲</span>
+        </div>
+        <div id="wrap-inscricao">
         <div class="detail-fields">
           ${field('Início das inscrições', formatDate(p.inscription_start))}
           ${field('Final das inscrições', formatDate(p.inscription_end))}
           ${field('Resposta da inscrição', formatDate(p.inscription_response))}
         </div>
+        </div>
       </div>
 
       <div class="detail-section">
-        <div class="detail-section-title">Execução do Projeto</div>
+        <div class="detail-section-title" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="toggleSection('wrap-execucao','icon-execucao')">
+          <span>Execução do Projeto</span><span id="icon-execucao" style="font-size:.8rem">▲</span>
+        </div>
+        <div id="wrap-execucao">
         <div class="detail-fields">
           ${field('Início do projeto', formatDate(p.project_start))}
           ${field('Final do projeto', formatDate(p.project_end))}
         </div>
+        </div>
       </div>
 
       <div class="detail-section">
-        <div class="detail-section-title">Anexos</div>
+        <div class="detail-section-title" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="toggleSection('wrap-anexos','icon-anexos')">
+          <span>Anexos</span><span id="icon-anexos" style="font-size:.8rem">▲</span>
+        </div>
+        <div id="wrap-anexos">
         <div class="att-list">${attHtml}</div>
+        </div>
       </div>
 
       <!-- Institutions -->
       <div class="detail-section full" id="section-institutions">
-        <div class="detail-section-title">
-          Instituições Participantes
-          <span style="margin-left:auto;font-size:.72rem;color:var(--text2)" id="inst-pct-total"></span>
+        <div class="detail-section-title" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="toggleSection('wrap-inst','icon-inst')">
+          <span>Instituições Participantes</span>
+          <span style="display:flex;align-items:center;gap:8px"><span style="font-size:.72rem;color:var(--text2)" id="inst-pct-total"></span><span id="icon-inst" style="font-size:.8rem">▲</span></span>
         </div>
+        <div id="wrap-inst">
         <div class="inline-section" id="institutions-container">
           <span class="detail-empty">Carregando...</span>
         </div>
@@ -669,6 +698,7 @@ async function openProject(id) {
           <input id="inst-name-input" placeholder="Nome da instituição..." />
           <input id="inst-val-input" type="number" min="0" step="0.01" placeholder="Valor alocado (R$)" style="max-width:180px" />
           <button class="btn-sm primary" onclick="addInstitution(${p.id})">＋ Adicionar</button>
+        </div>
         </div>
       </div>
 
@@ -710,13 +740,17 @@ async function openProject(id) {
 
       <!-- Comments -->
       <div class="detail-section full" id="section-comments">
-        <div class="detail-section-title">💬 Comentários</div>
+        <div class="detail-section-title" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="toggleSection('wrap-comments','icon-comments')">
+          <span>💬 Comentários</span><span id="icon-comments" style="font-size:.8rem">▲</span>
+        </div>
+        <div id="wrap-comments">
         <div class="comment-list" id="comments-container">
           <span class="detail-empty">Carregando...</span>
         </div>
         <div class="comment-form" id="comment-form-wrap">
           <textarea class="comment-input" id="comment-input" placeholder="Adicionar um comentário..." rows="2"></textarea>
           <button class="btn-sm primary" onclick="addComment(${p.id})" style="align-self:flex-end;padding:9px 16px">Enviar</button>
+        </div>
         </div>
       </div>
 
@@ -1684,23 +1718,17 @@ async function loadHistory(projectId) {
   } catch { container.innerHTML = '<span class="detail-empty">Erro ao carregar histórico.</span>'; }
 }
 
-function toggleHistory() {
-  const container = document.getElementById('history-container');
-  const icon = document.getElementById('history-toggle-icon');
+function toggleSection(wrapperId, iconId) {
+  const container = document.getElementById(wrapperId);
+  const icon = document.getElementById(iconId);
   if (!container) return;
   const isHidden = container.style.display === 'none';
   container.style.display = isHidden ? 'block' : 'none';
   if (icon) icon.textContent = isHidden ? '▲' : '▼';
 }
 
-function togglePhases() {
-  const container = document.getElementById('phases-container-wrap');
-  const icon = document.getElementById('phases-toggle-icon');
-  if (!container) return;
-  const isHidden = container.style.display === 'none';
-  container.style.display = isHidden ? 'block' : 'none';
-  if (icon) icon.textContent = isHidden ? '▲' : '▼';
-}
+function toggleHistory() { toggleSection('history-container', 'history-toggle-icon'); }
+function togglePhases()  { toggleSection('phases-container-wrap', 'phases-toggle-icon'); }
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 let _dashCharts = {};
