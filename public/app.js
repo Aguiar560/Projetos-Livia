@@ -688,6 +688,15 @@ async function openProject(id) {
             <div><span class="phase-form-label">Orçamento (R$)</span><input id="nph-budget" type="number" min="0" step="0.01" placeholder="0,00" /></div>
             <div><span class="phase-form-label">Progresso (%)</span><input id="nph-progress" type="number" min="0" max="100" placeholder="0" /></div>
           </div>
+          <div class="phase-form-row">
+            <div><span class="phase-form-label">Total de etapas</span><input id="nph-stotal" type="number" min="0" value="0" /></div>
+            <div><span class="phase-form-label">Etapas realizadas</span><input id="nph-sdone" type="number" min="0" value="0" /></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:2px">
+            <input type="checkbox" id="nph-sequal" checked style="accent-color:var(--accent)" />
+            <span class="phase-form-label" style="margin:0">Valor igual por etapa</span>
+            <input id="nph-svalue" type="number" min="0" step="0.01" value="0" placeholder="Valor/etapa" class="phase-steps-input" style="width:110px;margin-left:8px" />
+          </div>
           <div class="phase-form-actions">
             <button class="btn-sm ghost" onclick="cancelNewPhase()">Cancelar</button>
             <button class="btn-sm primary" onclick="saveNewPhase(${p.id})">✔ Salvar item</button>
@@ -1147,17 +1156,26 @@ function showNewPhaseForm(projectId) {
 }
 function cancelNewPhase() {
   document.getElementById('new-phase-form').style.display = 'none';
-  ['nph-name','nph-desc','nph-budget','nph-progress'].forEach(id => { document.getElementById(id).value = ''; });
+  ['nph-name','nph-desc','nph-budget','nph-progress','nph-stotal','nph-sdone','nph-svalue'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  const cb = document.getElementById('nph-sequal'); if (cb) cb.checked = true;
 }
 async function saveNewPhase(projectId) {
   const name = document.getElementById('nph-name').value.trim();
   if (!name) { showToast('Item do orçamento é obrigatório', 'error'); return; }
+  const steps_total = Math.max(0, Number(document.getElementById('nph-stotal').value) || 0);
+  const steps_done  = Math.min(steps_total, Math.max(0, Number(document.getElementById('nph-sdone').value) || 0));
+  const steps_equal = document.getElementById('nph-sequal').checked ? 1 : 0;
+  const steps_value = Number(document.getElementById('nph-svalue').value) || 0;
+  const autoProgress = steps_total > 0 ? Math.round((steps_done / steps_total) * 100) : Number(document.getElementById('nph-progress').value) || 0;
   const data = {
     name,
     description: document.getElementById('nph-desc').value,
-    budget: document.getElementById('nph-budget').value || 0,
-    progress: document.getElementById('nph-progress').value || 0,
-    order_num: document.querySelectorAll('.phase-item').length
+    budget:      document.getElementById('nph-budget').value || 0,
+    progress:    autoProgress,
+    order_num:   document.querySelectorAll('.phase-item').length,
+    steps_total, steps_done, steps_equal, steps_value,
   };
   try {
     await api(`/api/projects/${projectId}/phases`, {
