@@ -118,7 +118,6 @@
     .progress-row{display:flex;align-items:center;justify-content:space-between}
     .progress-bar-bg{height:6px;background:var(--surface2);border-radius:99px;overflow:hidden;flex:1}
     .progress-bar-fill{height:100%;border-radius:99px;transition:width .4s}
-    .tags-row{display:flex;flex-wrap:wrap;gap:5px}
     .tag{background:var(--surface2);color:var(--text2);border-radius:6px;font-size:.72rem;padding:3px 8px;font-weight:500}
     .card-actions{display:flex;gap:8px;margin-top:auto;padding-top:6px}
     .card-actions .btn{flex:1;justify-content:center;padding:8px 14px;font-size:.82rem}
@@ -180,7 +179,6 @@
     .detail-progress-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
     .detail-progress-bar{height:10px;background:var(--surface2);border-radius:99px;overflow:hidden}
     .detail-progress-fill{height:100%;border-radius:99px;transition:width .6s}
-    .detail-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
     .detail-empty{color:var(--text2);font-size:.85rem;font-style:italic}
 
     /* INLINE SECTIONS (institutions & phases) */
@@ -847,10 +845,6 @@
             <label>Orçamento</label>
             <input name="budget" placeholder="0,00" type="number" step="0.01" min="0"/>
           </div>
-          <div class="field">
-            <label>Tags</label>
-            <input name="tags" placeholder="design, web, urgente" />
-          </div>
           <div class="field"></div>
 
           <div class="field full">
@@ -870,6 +864,6 @@
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<script src="/app.js?v=20260505h"></script>
+<script src="/app.js?v=20260505i"></script>
 </body>
 </html>

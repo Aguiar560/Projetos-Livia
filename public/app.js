@@ -384,8 +384,7 @@ function renderList() {
     const matchSearch = !q ||
       (p.name || '').toLowerCase().includes(q) ||
       (p.description || '').toLowerCase().includes(q) ||
-      (p.client || '').toLowerCase().includes(q) ||
-      (Array.isArray(p.tags) ? p.tags : []).some(t => t.toLowerCase().includes(q));
+      (p.client || '').toLowerCase().includes(q);
     return matchFilter && matchSearch;
   });
 
@@ -525,7 +524,6 @@ async function openProject(id) {
   const progress = Number(p.progress) || 0;
   const progressColor = progress >= 80 ? 'var(--realizado)' : progress >= 40 ? 'var(--andamento)' : 'var(--cadastrado)';
   const budget = formatBudget(p.budget, p.currency);
-  const tags = (Array.isArray(p.tags) ? p.tags : []).filter(Boolean);
   const atts = parseAttachments(p.attachments).filter(a => a && a.filename);
 
   const field = (label, value, highlight = false) => `
@@ -542,10 +540,6 @@ async function openProject(id) {
           <span class="att-dl">⬇ Baixar</span>
         </a>`).join('')
     : '<span class="detail-empty">Nenhum anexo</span>';
-
-  const tagsHtml = tags.length
-    ? tags.map(t => `<span class="tag">${esc(t)}</span>`).join('')
-    : '<span class="detail-empty">Nenhuma tag</span>';
 
   const editalVal = p.edital_name ? esc(p.edital_name) : '';
   const editalUrl = p.edital_url ? esc(p.edital_url) : '';
@@ -636,11 +630,6 @@ async function openProject(id) {
           ${field('Início do projeto', formatDate(p.project_start))}
           ${field('Final do projeto', formatDate(p.project_end))}
         </div>
-      </div>
-
-      <div class="detail-section">
-        <div class="detail-section-title">Tags</div>
-        <div class="detail-tags">${tagsHtml}</div>
       </div>
 
       <div class="detail-section">
@@ -1240,7 +1229,6 @@ async function editProject(id) {
   form.client.value = p.client || '';
   form.budget.value = p.budget || '';
   form.currency.value = p.currency || 'BRL';
-  form.tags.value = (p.tags || []).join(', ');
   form.inscription_start.value = dateVal(p.inscription_start);
   form.inscription_end.value   = dateVal(p.inscription_end);
   form.inscription_response.value = dateVal(p.inscription_response);
@@ -1284,7 +1272,6 @@ if (_projectForm) _projectForm.addEventListener('submit', async e => {
     budget: form.budget.value || null,
     currency: form.currency.value || 'BRL',
     progress: editingId ? (allProjects.find(x => x.id === editingId)?.progress || 0) : 0,
-    tags: form.tags.value.split(',').map(s => s.trim()).filter(Boolean),
     inscription_start: form.inscription_start.value || null,
     inscription_end: form.inscription_end.value || null,
     inscription_response: form.inscription_response.value || null,

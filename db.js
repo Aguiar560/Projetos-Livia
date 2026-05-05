@@ -149,10 +149,6 @@ async function init(){
   }
 }
 
-function serializeTags(tags){
-  return Array.isArray(tags) ? tags.join(',') : '';
-}
-
 function parseJsonField(val) {
   if (!val) return [];
   if (Array.isArray(val)) return val;
@@ -163,18 +159,18 @@ module.exports = {
   init,
   async getAllProjects(){
     const [rows] = await POOL.query('SELECT * FROM projects ORDER BY created_at DESC');
-    return rows.map(r=>({ ...r, tags: r.tags ? (r.tags.split(',').filter(Boolean)) : [], attachments: parseJsonField(r.attachments) }));
+    return rows.map(r=>({ ...r, attachments: parseJsonField(r.attachments) }));
   },
   async getProjectById(id){
     const [rows] = await POOL.query('SELECT * FROM projects WHERE id = ? LIMIT 1', [id]);
     if(rows.length===0) return null;
     const r = rows[0];
-    return { ...r, tags: r.tags ? (r.tags.split(',').filter(Boolean)) : [], attachments: parseJsonField(r.attachments) };
+    return { ...r, attachments: parseJsonField(r.attachments) };
   },
   async createProject(payload, files){
     const attachments = files || [];
     const [result] = await POOL.query(
-      `INSERT INTO projects (name, description, status, start_date, end_date, client, budget, currency, progress, tags, attachments, inscription_start, inscription_end, project_start, project_end, inscription_response, edital_name, edital_url) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      `INSERT INTO projects (name, description, status, start_date, end_date, client, budget, currency, progress, attachments, inscription_start, inscription_end, project_start, project_end, inscription_response, edital_name, edital_url) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         payload.name || '',
         payload.description || '',
@@ -185,7 +181,6 @@ module.exports = {
         payload.budget ? Number(payload.budget) : null,
         payload.currency || 'BRL',
         payload.progress ? Number(payload.progress) : 0,
-        serializeTags(payload.tags),
         JSON.stringify(attachments),
         payload.inscription_start || null,
         payload.inscription_end || null,
@@ -203,7 +198,7 @@ module.exports = {
     if(!existing) return false;
     const attachments = (existing.attachments || []).concat(files || []);
     const [result] = await POOL.query(
-      `UPDATE projects SET name=?, description=?, status=?, start_date=?, end_date=?, client=?, budget=?, currency=?, progress=?, tags=?, attachments=?, inscription_start=?, inscription_end=?, project_start=?, project_end=?, inscription_response=?, edital_name=?, edital_url=? WHERE id=?`,
+      `UPDATE projects SET name=?, description=?, status=?, start_date=?, end_date=?, client=?, budget=?, currency=?, progress=?, attachments=?, inscription_start=?, inscription_end=?, project_start=?, project_end=?, inscription_response=?, edital_name=?, edital_url=? WHERE id=?`,
       [
         payload.name || existing.name,
         payload.description || existing.description,
@@ -214,7 +209,6 @@ module.exports = {
         payload.budget !== undefined ? Number(payload.budget) : existing.budget,
         payload.currency || existing.currency || 'BRL',
         payload.progress !== undefined ? Number(payload.progress) : existing.progress,
-        serializeTags(payload.tags) || (existing.tags || []).join(','),
         JSON.stringify(attachments),
         payload.inscription_start || existing.inscription_start || null,
         payload.inscription_end || existing.inscription_end || null,
