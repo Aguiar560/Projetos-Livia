@@ -2,12 +2,11 @@
 // v2 — app.js sempre via network (nunca cacheado) para evitar servir versão antiga
 const CACHE_NAME = 'projetos-livia-v2';
 
-// Apenas assets verdadeiramente estáticos (sem app.js ou index.html)
+// Apenas assets verdadeiramente estáticos (sem app.js, index.html ou recursos externos que a CSP pode bloquear)
 const STATIC_ASSETS = [
   '/manifest.json',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
-  'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap',
   'https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js'
 ];
 
