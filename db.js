@@ -144,6 +144,17 @@ async function init(){
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // file blobs table — persiste arquivos no MySQL (evita perda no Railway)
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS file_blobs (
+        filename VARCHAR(255) PRIMARY KEY,
+        originalname VARCHAR(255) NOT NULL,
+        mimetype VARCHAR(100) NOT NULL,
+        data LONGBLOB NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
   } finally {
     conn.release();
   }
@@ -317,5 +328,22 @@ module.exports = {
     await POOL.query(
       'INSERT INTO project_history (project_id, author, action, detail) VALUES (?,?,?,?)',
       [projectId, author, action, detail || null]);
+  },
+
+  // ── File Blobs (armazenamento persistente no MySQL) ─────────────────────────
+  async saveFileBlob(filename, originalname, mimetype, buffer){
+    await POOL.query(
+      `INSERT INTO file_blobs (filename, originalname, mimetype, data) VALUES (?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE data=VALUES(data), originalname=VALUES(originalname), mimetype=VALUES(mimetype)`,
+      [filename, originalname, mimetype, buffer]
+    );
+  },
+  async getFileBlob(filename){
+    const [rows] = await POOL.query(
+      'SELECT filename, originalname, mimetype, data FROM file_blobs WHERE filename = ?', [filename]);
+    return rows[0] || null;
+  },
+  async deleteFileBlob(filename){
+    await POOL.query('DELETE FROM file_blobs WHERE filename = ?', [filename]);
   }
 };

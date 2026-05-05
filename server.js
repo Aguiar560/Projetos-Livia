@@ -150,17 +150,7 @@ const ALLOWED_MIMETYPES = new Set([
   'video/mp4','audio/mpeg','text/plain','text/csv'
 ]);
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, 'uploads/')),
-  filename: (req, file, cb) => {
-    // Sanitiza nome — remove caracteres perigosos, mantém extensão
-    const ext  = path.extname(file.originalname).replace(/[^a-zA-Z0-9.]/g, '').substring(0, 10);
-    const base = path.basename(file.originalname, path.extname(file.originalname))
-                    .replace(/[^a-zA-Z0-9\-_]/g, '_')
-                    .substring(0, 60);
-    cb(null, `${Date.now()}_${base}${ext}`);
-  }
-});
+const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
   if (ALLOWED_MIMETYPES.has(file.mimetype)) {
@@ -191,6 +181,26 @@ function sanitizeFilename(val) {
   const clean = path.basename(String(val || '')).replace(/[^a-zA-Z0-9.\-_]/g, '_');
   if (!clean || clean.startsWith('.')) return null;
   return clean;
+}
+
+// Gera filename único sanitizado para novos uploads
+function makeFilename(originalname) {
+  const ext  = path.extname(originalname).replace(/[^a-zA-Z0-9.]/g, '').substring(0, 10);
+  const base = path.basename(originalname, path.extname(originalname))
+                  .replace(/[^a-zA-Z0-9\-_]/g, '_')
+                  .substring(0, 60);
+  return `${Date.now()}_${base}${ext}`;
+}
+
+// Salva arquivos do req.files (memoryStorage) no DB e retorna array de metadados
+async function persistFiles(files) {
+  const result = [];
+  for (const f of (files || [])) {
+    const filename = makeFilename(f.originalname);
+    await db.saveFileBlob(filename, f.originalname, f.mimetype, f.buffer);
+    result.push({ originalname: f.originalname, filename, mimetype: f.mimetype });
+  }
+  return result;
 }
 
 function safeJson(body) {
@@ -234,7 +244,7 @@ app.post('/api/projects', requireAdmin, uploadLimiter, upload.array('attachments
     const payload = safeJson(req.body.payload || req.body);
     if (!payload.name || String(payload.name).trim().length === 0)
       return res.status(400).json({ error: 'Nome é obrigatório' });
-    const files = (req.files || []).map(f => ({ originalname: f.originalname, filename: f.filename }));
+    const files = await persistFiles(req.files);
     const id = await db.createProject(payload, files);
     await db.addHistory(id, req.authUser, 'criou', `Projeto "${payload.name}" criado com status "${payload.status || 'cadastrado'}"`);
     res.status(201).json({ id });
@@ -249,7 +259,7 @@ app.put('/api/projects/:id', requireAdmin, uploadLimiter, upload.array('attachme
   if (!id) return res.status(400).json({ error: 'ID inválido' });
   try {
     const payload = safeJson(req.body.payload || req.body);
-    const files = (req.files || []).map(f => ({ originalname: f.originalname, filename: f.filename }));
+    const files = await persistFiles(req.files);
     const existing = await db.getProjectById(id);
     const changed = await db.updateProject(id, payload, files);
     if (!changed) return res.status(404).json({ error: 'Not found' });
@@ -282,24 +292,27 @@ app.delete('/api/projects/:id', requireAdmin, async (req, res) => {
   } catch { res.status(500).json({ error: 'Erro interno' }); }
 });
 
-// ── Attachments download ──────────────────────────────────────────────────────
+// ── Attachments serve ─────────────────────────────────────────────────────────
+// ?dl=1  → força download   (padrão para tipos não visualizáveis)
+// sem ?dl → tenta abrir inline no browser (imagens, PDF)
+const INLINE_TYPES = new Set(['image/jpeg','image/png','image/gif','image/webp','image/svg+xml','application/pdf']);
+
 app.get('/api/projects/:id/attachments/:filename', async (req, res) => {
   const id = sanitizeId(req.params.id);
   const filename = sanitizeFilename(req.params.filename);
   if (!id || !filename) return res.status(400).json({ error: 'Parâmetros inválidos' });
   try {
-    const project = await db.getProjectById(id);
-    if (!project) return res.status(404).json({ error: 'Project not found' });
-    const att = (project.attachments || []).find(a => a.filename === filename);
-    if (!att) return res.status(404).json({ error: 'Attachment not found' });
-    const filePath = path.join(__dirname, 'uploads', filename);
-    // Garante que o arquivo está dentro da pasta uploads (anti path traversal)
-    if (!filePath.startsWith(path.join(__dirname, 'uploads')))
-      return res.status(403).json({ error: 'Acesso negado' });
-    res.download(filePath, att.originalname);
+    const blob = await db.getFileBlob(filename);
+    if (!blob) return res.status(404).send('Arquivo não encontrado');
+    const forceDownload = req.query.dl === '1' || !INLINE_TYPES.has(blob.mimetype);
+    res.setHeader('Content-Type', blob.mimetype || 'application/octet-stream');
+    res.setHeader('Content-Disposition',
+      `${forceDownload ? 'attachment' : 'inline'}; filename="${encodeURIComponent(blob.originalname)}"`);
+    res.setHeader('Content-Length', blob.data.length);
+    res.send(blob.data);
   } catch (err) {
     console.error('[GET attachment]', err.message);
-    res.status(500).json({ error: 'Download failed' });
+    res.status(500).json({ error: 'Erro ao servir arquivo' });
   }
 });
 
@@ -387,7 +400,7 @@ app.post('/api/projects/:id/phases/:pid/attachments', requireAdmin, uploadLimite
   const pid = sanitizeId(req.params.pid);
   if (!id || !pid) return res.status(400).json({ error: 'ID inválido' });
   try {
-    const newFiles = (req.files || []).map(f => ({ originalname: f.originalname, filename: f.filename }));
+    const newFiles = await persistFiles(req.files);
     if (!newFiles.length) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
     const phase = await db.getPhaseById(pid);
     if (!phase) return res.status(404).json({ error: 'Phase not found' });
@@ -397,19 +410,18 @@ app.post('/api/projects/:id/phases/:pid/attachments', requireAdmin, uploadLimite
 });
 
 app.get('/api/projects/:id/phases/:pid/attachments/:filename', async (req, res) => {
-  const id       = sanitizeId(req.params.id);
   const pid      = sanitizeId(req.params.pid);
   const filename = sanitizeFilename(req.params.filename);
-  if (!id || !pid || !filename) return res.status(400).json({ error: 'Parâmetros inválidos' });
+  if (!pid || !filename) return res.status(400).json({ error: 'Parâmetros inválidos' });
   try {
-    const phase = await db.getPhaseById(pid);
-    if (!phase) return res.status(404).json({ error: 'Phase not found' });
-    const att = (phase.attachments || []).find(a => a.filename === filename);
-    if (!att) return res.status(404).json({ error: 'Attachment not found' });
-    const filePath = path.join(__dirname, 'uploads', filename);
-    if (!filePath.startsWith(path.join(__dirname, 'uploads')))
-      return res.status(403).json({ error: 'Acesso negado' });
-    res.download(filePath, att.originalname);
+    const blob = await db.getFileBlob(filename);
+    if (!blob) return res.status(404).send('Arquivo não encontrado');
+    const forceDownload = req.query.dl === '1' || !INLINE_TYPES.has(blob.mimetype);
+    res.setHeader('Content-Type', blob.mimetype || 'application/octet-stream');
+    res.setHeader('Content-Disposition',
+      `${forceDownload ? 'attachment' : 'inline'}; filename="${encodeURIComponent(blob.originalname)}"`);
+    res.setHeader('Content-Length', blob.data.length);
+    res.send(blob.data);
   } catch(err){ res.status(500).json({ error: 'Erro interno' }); }
 });
 

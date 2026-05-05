@@ -488,22 +488,10 @@ function parseAttachments(raw) {
 function renderAttachments(p) {
   const atts = parseAttachments(p.attachments).filter(a => a && a.filename);
   if (!atts.length) return '';
-  const items = atts.map(a => `
-    <a class="att-item" href="/api/projects/${p.id}/attachments/${encodeURIComponent(a.filename)}" download="${esc(a.originalname)}" title="Baixar ${esc(a.originalname)}">
-      <span class="att-icon">${fileIcon(a.originalname)}</span>
-      <span class="att-name">${esc(a.originalname)}</span>
-      <span class="att-dl">⬇</span>
-    </a>`).join('');
-  return `<div class="card-divider">📎 Anexos</div><div class="att-list">${items}</div>`;
-}
-
-function renderAttachments(p) {
-  const atts = parseAttachments(p.attachments).filter(a => a && a.filename);
-  if (!atts.length) return '';
   const items = atts.map(a => {
     const url = `/api/projects/${p.id}/attachments/${encodeURIComponent(a.filename)}`;
     const previewable = ['jpg','jpeg','png','gif','webp','pdf'].includes((a.originalname||'').split('.').pop().toLowerCase());
-    return `<div class="att-item" onclick="openPreview('${url}','${esc(a.originalname)}','${url}')" style="cursor:pointer" title="${previewable ? 'Visualizar' : 'Baixar'} ${esc(a.originalname)}">
+    return `<div class="att-item" onclick="openPreview('${url}','${esc(a.originalname)}','${url}?dl=1')" style="cursor:pointer" title="${previewable ? 'Visualizar' : 'Baixar'} ${esc(a.originalname)}">
       <span class="att-icon">${fileIcon(a.originalname)}</span>
       <span class="att-name">${esc(a.originalname)}</span>
       <span class="att-dl">${previewable ? '🔍' : '⬇'}</span>
@@ -533,12 +521,15 @@ async function openProject(id) {
     </div>`;
 
   const attHtml = atts.length
-    ? atts.map(a => `
-        <a class="att-item" href="/api/projects/${p.id}/attachments/${encodeURIComponent(a.filename)}" download="${esc(a.originalname)}">
+    ? atts.map(a => {
+        const url = `/api/projects/${p.id}/attachments/${encodeURIComponent(a.filename)}`;
+        const previewable = ['jpg','jpeg','png','gif','webp','pdf'].includes((a.originalname||'').split('.').pop().toLowerCase());
+        return `<div class="att-item" onclick="openPreview('${url}','${esc(a.originalname)}','${url}?dl=1')" style="cursor:pointer">
           <span class="att-icon">${fileIcon(a.originalname)}</span>
           <span class="att-name">${esc(a.originalname)}</span>
-          <span class="att-dl">⬇ Baixar</span>
-        </a>`).join('')
+          <span class="att-dl">${previewable ? '🔍 Visualizar' : '⬇ Baixar'}</span>
+        </div>`;
+      }).join('')
     : '<span class="detail-empty">Nenhum anexo</span>';
 
   const editalVal = p.edital_name ? esc(p.edital_name) : '';
