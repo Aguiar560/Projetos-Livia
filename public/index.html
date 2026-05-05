@@ -717,12 +717,40 @@
 </div>
 
 <!-- PWA Install Banner (iOS) -->
-<div id="pwa-banner" style="display:none;position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:9999;background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:10px 14px;display:none;align-items:center;gap:10px;box-shadow:0 4px 20px rgba(0,0,0,.5);max-width:320px;width:calc(100% - 32px)">
+<div id="pwa-banner" style="display:none;position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:9999;background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:10px 14px;align-items:center;gap:10px;box-shadow:0 4px 20px rgba(0,0,0,.5);max-width:320px;width:calc(100% - 32px);cursor:pointer" onclick="document.getElementById('pwa-modal').style.display='flex'">
   <span style="font-size:1.4rem">📲</span>
   <div style="flex:1;font-size:.78rem;color:var(--text);line-height:1.4">
-    Instale o app: toque em <strong>⬆</strong> e depois <strong>"Adicionar à Tela de Início"</strong>
+    <strong>Instalar como app</strong><br>
+    <span style="color:var(--text2)">Toque aqui para ver como</span>
   </div>
-  <button onclick="document.getElementById('pwa-banner').style.display='none';localStorage.setItem('pwa-dismissed','1')" style="background:none;border:none;color:var(--text2);font-size:1.1rem;cursor:pointer;padding:2px 4px;line-height:1">✕</button>
+  <button onclick="event.stopPropagation();document.getElementById('pwa-banner').style.display='none';localStorage.setItem('pwa-dismissed','1')" style="background:none;border:none;color:var(--text2);font-size:1.1rem;cursor:pointer;padding:2px 4px;line-height:1">✕</button>
+</div>
+
+<!-- PWA Install Modal -->
+<div id="pwa-modal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.7);align-items:flex-end;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface2);border-radius:20px 20px 0 0;padding:24px;width:100%;max-width:480px;border:1px solid var(--border)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <strong style="font-size:1rem">📲 Instalar no iPhone</strong>
+      <button onclick="document.getElementById('pwa-modal').style.display='none'" style="background:none;border:none;color:var(--text2);font-size:1.3rem;cursor:pointer">✕</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px;font-size:.88rem;color:var(--text)">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="background:var(--accent);color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">1</div>
+        <span>Toque no botão <strong style="background:var(--surface);padding:2px 8px;border-radius:6px;font-size:.95rem">⬆</strong> na barra inferior do Safari</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="background:var(--accent);color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">2</div>
+        <span>Role a lista para baixo e toque em <strong>"Adicionar à Tela de Início"</strong></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="background:var(--accent);color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">3</div>
+        <span>Toque em <strong>"Adicionar"</strong> no canto superior direito</span>
+      </div>
+    </div>
+    <button onclick="document.getElementById('pwa-modal').style.display='none';document.getElementById('pwa-banner').style.display='none';localStorage.setItem('pwa-dismissed','1')" style="margin-top:20px;width:100%;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:12px;font-size:.9rem;font-weight:600;cursor:pointer">
+      Entendi ✓
+    </button>
+  </div>
 </div>
 
 <!-- CONFIRM DIALOG -->
@@ -842,6 +870,6 @@
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<script src="/app.js?v=20260505g"></script>
+<script src="/app.js?v=20260505h"></script>
 </body>
 </html>
