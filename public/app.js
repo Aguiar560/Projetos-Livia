@@ -391,7 +391,7 @@ function renderList() {
       <div class="card-actions">
         <button class="btn btn-primary" style="flex:2" onclick="openProject(${p.id})">Detalhes</button>
         <button class="btn btn-ghost" onclick="editProject(${p.id})">✏️</button>
-        ${isAdmin() ? `<button class="btn btn-danger" onclick="deleteProject(${p.id})">🗑</button>` : ''}
+        <button class="btn btn-danger" onclick="deleteProject(${p.id})">🗑</button>
       </div>
     </div>`;
   }).join('');
@@ -487,7 +487,7 @@ async function openProject(id) {
       </div>
       <div class="detail-top-actions">
         <button class="btn btn-ghost" onclick="editProject(${p.id})">✏️ Editar</button>
-        ${isAdmin() ? `<button class="btn btn-danger" onclick="deleteProject(${p.id})">🗑 Excluir</button>` : ''}
+        <button class="btn btn-danger" onclick="deleteProject(${p.id})">🗑 Excluir</button>
       </div>
     </div>
 
