@@ -1513,12 +1513,10 @@ async function doLogin() {
     const token = btoa(user + ':' + pass);
     const headers = { 'Authorization': 'Basic ' + token };
 
-    // 1. Valida credenciais
-    const res = await fetch('/api/projects', { headers });
-    if (!res.ok) throw new Error('unauthorized');
-
-    // 2. Busca role do usuário
-    const me = await fetch('/api/me', { headers }).then(r => r.json());
+    // Valida credenciais no endpoint /api/me
+    const meRes = await fetch('/api/me', { headers });
+    if (!meRes.ok) throw new Error('unauthorized');
+    const me = await meRes.json();
 
     sessionStorage.setItem('auth', token);
     sessionStorage.setItem('role', me.role || 'viewer');
